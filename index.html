@@ -767,7 +767,7 @@
     if(idx>=0) state.records[idx] = record; else state.records.push(record);
     state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
 try {
-  const res = await fetch("https://script.google.com/macros/s/XXXXXXXX/exec", {
+  const res = await fetch("https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbykFyUyBvlzaZ2z9_0Hwicx4jhsAlGEphlwpv89Ymm6OIrFc-DKylkl_eN4kEnWc_azQg/exec/exec", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
