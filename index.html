@@ -766,7 +766,13 @@
     const idx = state.records.findIndex(r=>r.id===record.id);
     if(idx>=0) state.records[idx] = record; else state.records.push(record);
     state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
-
+fetch("GASのURL", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(record)
+});
     showToast('保存しました');
     state.view='list';
     renderList();
