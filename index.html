@@ -766,13 +766,21 @@
     const idx = state.records.findIndex(r=>r.id===record.id);
     if(idx>=0) state.records[idx] = record; else state.records.push(record);
     state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
-fetch("GASのURL", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify(record)
-});
+try {
+  const res = await fetch("https://script.google.com/macros/s/XXXXXXXX/exec", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(record)
+  });
+
+  const text = await res.text();
+  console.log("GAS response:", text);
+} catch (err) {
+  console.error("GAS送信エラー:", err);
+  showToast("クラウド保存に失敗（GAS接続）");
+}
     showToast('保存しました');
     state.view='list';
     renderList();
