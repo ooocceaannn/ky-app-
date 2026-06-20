@@ -768,14 +768,12 @@
     state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
 try {
   const res = await fetch("https://script.google.com/macros/s/AKfycby0klhQAyFcLJ117856B6xx4_GHbaQreC1nNT4d1gHOLh_JK1Zwh2ibkuImpCVzeykbPg/exec", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
+method: "POST",
   body: JSON.stringify(record)
 });
 
-  const text = await res.text();
+const text = await res.text();
+console.log(text);
   console.log("GAS response:", text);
 } catch (err) {
   console.error("GAS送信エラー:", err);
