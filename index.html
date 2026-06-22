@@ -615,6 +615,17 @@ function openForm(id){
             <div class="field"><label>工事名</label><input type="text" id="f_projectName" value="${esc(rec.projectName)}" placeholder="工事名"></div>
           </div>
           <div class="row2">
+  <div class="field">
+    <label>開始時間</label>
+    <input type="time" id="f_startTime">
+  </div>
+
+  <div class="field">
+    <label>終了時間</label>
+    <input type="time" id="f_endTime">
+  </div>
+</div>
+          <div class="row2">
             <div class="field"><label>会社名</label><input type="text" id="f_companyName" value="${esc(rec.companyName)}"></div>
             <div class="field"><label>職長</label><input type="text" id="f_foreman" value="${esc(rec.foreman)}"></div>
           </div>
