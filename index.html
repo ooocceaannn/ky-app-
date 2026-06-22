@@ -186,7 +186,33 @@
   #ky-app .loading-state{text-align:center;padding:60px 20px;color:var(--ink-soft);}
   #ky-app .form-title{font-size:18px;font-weight:700;margin:14px 0 0;}
   #ky-app .form-subtitle{font-size:12px;color:var(--ink-soft);margin:2px 0 0;}
+@media(max-width:768px){
 
+  #ky-app .row2,
+  #ky-app .row3{
+    grid-template-columns:1fr;
+  }
+
+  #ky-app input,
+  #ky-app textarea,
+  #ky-app select{
+    font-size:16px;
+  }
+
+  #ky-app .btn{
+    min-height:48px;
+    font-size:16px;
+  }
+
+  #ky-app .chk{
+    padding:12px 16px;
+    font-size:15px;
+  }
+
+  #ky-app .record-work{
+    font-size:16px;
+  }
+}
   @media print{
     #ky-app .topbar, #ky-app .save-bar, #ky-app .toolbar, #ky-app .row-remove, #ky-app .add-row-btn, #ky-app .btn{display:none !important;}
     #ky-app{background:#fff;}
@@ -454,11 +480,46 @@
   }
 
   /* ================= FORM VIEW ================= */
-  function openForm(id){
-    const rec = id ? JSON.parse(JSON.stringify(state.records.find(r=>r.id===id))) : blankRecord();
-    state.currentId = id;
-    renderForm(rec, !id);
+function openForm(id){
+
+  let rec;
+
+  if(id){
+    rec = JSON.parse(JSON.stringify(
+      state.records.find(r=>r.id===id)
+    ));
+  }else{
+
+    const latest = state.records[0];
+
+    if(latest){
+
+      rec = JSON.parse(JSON.stringify(latest));
+
+      rec.id = null;
+      rec.date = todayStr();
+
+      rec.workContent = '';
+      rec.hazards = [
+        {hazard:'',measure:''},
+        {hazard:'',measure:''},
+        {hazard:'',measure:''}
+      ];
+
+      rec.notes = '';
+      rec.result = '';
+
+      rec.createdAt = null;
+      rec.updatedAt = null;
+
+    }else{
+      rec = blankRecord();
+    }
   }
+
+  state.currentId = id;
+  renderForm(rec, !id);
+}
 
   function checklistGroupHtml(group, data){
     data = data || {};
