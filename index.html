@@ -338,6 +338,8 @@
     return {
       id:null,
       date: todayStr(),
+       startTime:'',
+       endTime:'',
       projectName: state.shared.projectName || '',
       companyName: state.shared.companyName || '',
       foreman:'',
@@ -611,7 +613,9 @@ function openForm(id){
         <div class="section-head">基本情報</div>
         <div class="section-body">
           <div class="row2">
-            <div class="field"><label>日付</label><input type="date" id="f_date" value="${esc(rec.date)}"></div>
+            <div class="field"><label>日付</label><input type="date" id="f_date" value="${esc(rec.startTime || '')}"
+
+value="${esc(rec.endTime || '')}"></div>
             <div class="field"><label>工事名</label><input type="text" id="f_projectName" value="${esc(rec.projectName)}" placeholder="工事名"></div>
           </div>
           <div class="row2">
@@ -778,6 +782,8 @@ function openForm(id){
     const get = id => mainArea.querySelector('#'+id);
     const data = {
       date: get('f_date').value || todayStr(),
+       startTime: get('f_startTime').value,
+  endTime: get('f_endTime').value,
       projectName: get('f_projectName').value.trim(),
       companyName: get('f_companyName').value.trim(),
       foreman: get('f_foreman').value.trim(),
