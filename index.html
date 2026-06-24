@@ -836,8 +836,19 @@ value="${esc(rec.endTime || '')}"></div>
     }
 
     // persist convenient defaults
-    const newShared = { companyName: formData.companyName };
-    if(newShared.projectName !== state.shared.projectName || newShared.companyName !== state.shared.companyName){
+const newShared = {
+  companyName: formData.companyName
+};
+
+if(newShared.companyName !== state.shared.companyName){
+  state.shared.companyName = newShared.companyName;
+
+  sSet(
+    'settings:shared',
+    JSON.stringify(state.shared),
+    true
+  );
+}
       state.shared = newShared;
       sSet('settings:shared', JSON.stringify(state.shared), true);
     }
