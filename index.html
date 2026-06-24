@@ -428,12 +428,7 @@
       <div class="card-list" id="cardListContainer"></div>`;
 
     topbarInner.querySelector('#newRecordBtn').onclick = ()=>openForm(null);
-    const projInput = topbarInner.querySelector('#projectNameInput');
-    projInput.addEventListener('change', async ()=>{
-      state.shared.projectName = projInput.value;
-      await sSet('settings:shared', JSON.stringify(state.shared), true);
-      showToast('工事名を更新しました');
-    });
+   
 
     const searchInput = mainArea.querySelector('#searchInput');
     const dateInput = mainArea.querySelector('#dateFilterInput');
