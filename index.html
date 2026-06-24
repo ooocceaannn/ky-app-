@@ -855,7 +855,7 @@ value="${esc(rec.endTime || '')}"></div>
     if(idx>=0) state.records[idx] = record; else state.records.push(record);
     state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
 try {
-  const res = await fetch("https://script.google.com/macros/s/AKfycbz9ib_UE8Io203KEQQtACT_kDb12NhTEX6zfoamz1TAnVkp2ban_Fowo_ZmRvrPLoOa5Q/exec", {
+  const res = await fetch("https://script.google.com/macros/s/AKfycbx7ND19RlAl2Z50SbL68ceZRIJ9p3VgMe66prKlGxKeNaeV5wK7a7hp8Avpw0detAHaFA/exec", {
 method: "POST",
   body: JSON.stringify(record)
 });
