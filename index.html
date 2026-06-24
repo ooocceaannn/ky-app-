@@ -415,7 +415,7 @@
       <div class="stamp-mark">KY</div>
       <div class="brand-text">
         <h1>KY活動表・作業前点検</h1>
-        <input id="projectNameInput" class="project-input" placeholder="工事名を入力" value="${esc(state.shared.projectName)}">
+      
       </div>
       <button class="btn btn-primary" id="newRecordBtn">＋ 新規作成</button>`;
 
@@ -510,7 +510,7 @@ function openForm(id){
 
       rec.id = null;
       rec.date = todayStr();
-
+rec.projectName = "";
       rec.workContent = '';
       rec.hazards = [
         {hazard:'',measure:''},
@@ -841,7 +841,7 @@ value="${esc(rec.endTime || '')}"></div>
     }
 
     // persist convenient defaults
-    const newShared = { projectName: formData.projectName, companyName: formData.companyName };
+    const newShared = { companyName: formData.companyName };
     if(newShared.projectName !== state.shared.projectName || newShared.companyName !== state.shared.companyName){
       state.shared = newShared;
       sSet('settings:shared', JSON.stringify(state.shared), true);
