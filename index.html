@@ -246,40 +246,7 @@
 
   const QUAL_CODES = ['','主','揮','監','誘','合'];
 
-  const CHECK_GROUPS = [
-    { title:'有資格者', key:'qualified', items:[
-        {id:'tamakake', label:'玉掛'},
-        {id:'gas', label:'ガス溶接'},
-        {id:'arc', label:'アーク溶接'},
-        {id:'crane', label:'クレーン', detail:{id:'craneDetail', placeholder:'トン数 例: 4.9t'}},
-        {id:'lift', label:'リフト'},
-        {id:'jiyama', label:'地山掘削作業主任者'},
-        {id:'doshi', label:'土止支保工作業主任者'},
-        {id:'vehicle', label:'車両建設機械', detail:{id:'vehicleDetail', placeholder:'機種・名称'}},
-        {id:'ashiba', label:'足場作業主任者'},
-        {id:'katawaku', label:'型枠支保工作業主任者'},
-        {id:'tekkotsu', label:'鉄骨組立作業主任者'},
-    ]},
-    { title:'選任者', key:'appointed', items:[
-        {id:'aizu', label:'合図者', detail:{id:'aizuName', placeholder:'氏名'}},
-        {id:'shiki', label:'作業指揮者', detail:{id:'shikiName', placeholder:'氏名'}},
-    ]},
-    { title:'保護具', key:'ppe', items:[
-        {id:'hat',label:'保護帽'},{id:'belt',label:'安全帯'},{id:'glasses',label:'保護メガネ'},{id:'mask',label:'防塵マスク'},
-    ]},
-    { title:'玉掛用具', key:'sling', items:[
-        {id:'wire',label:'ワイヤーロープ'},{id:'fiber',label:'繊維ロープ'},{id:'hook',label:'フック'},{id:'shackle',label:'シャックル'},
-    ]},
-    { title:'機械器具', key:'machine', items:[
-        {id:'sawguard',label:'丸鋸の接触防止'},{id:'beltcover',label:'ベルト・ギヤー類のカバー'},{id:'weldcover',label:'溶接ホルダーの絶縁カバー'},
-    ]},
-    { title:'電気', key:'electric', items:[
-        {id:'cabledamage',label:'移動電線の損傷'},{id:'leakbreaker',label:'漏電防止遮断装置の作動'},{id:'earthwire',label:'アース線の接続'},
-    ]},
-    { title:'クレーン・リフト', key:'craneLift', items:[
-        {id:'overwind',label:'過巻防止装置'},{id:'brakeclutch',label:'ブレーキ・クラッチ'},{id:'wirepass',label:'ワイヤーロープの通過部分'},
-    ]},
-  ];
+
 
   let state = {
     view:'loading',
@@ -654,12 +621,7 @@ rec.projectName = "";
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-head">確認チェックリスト</div>
-        <div class="section-body">
-          <div class="chk-groups" id="checklistContainer"></div>
-        </div>
-      </div>
+
 
       <div class="section">
         <div class="section-head">記事・判定</div>
@@ -799,16 +761,7 @@ endTime: get('f_endTime')?.value || '',
       name: row.querySelector('.worker-name').value.trim(),
       qual: row.querySelector('.worker-qual').value,
     }));
-    CHECK_GROUPS.forEach(g=>{
-      const obj = {};
-      g.items.forEach(item=>{
-        const chk = mainArea.querySelector(`input[data-group="${g.key}"][data-id="${item.id}"]`);
-        obj[item.id] = !!(chk && chk.checked);
-        if(item.detail){
-          const det = mainArea.querySelector(`[data-group="${g.key}"][data-detailid="${item.detail.id}"]`);
-          obj[item.detail.id] = det ? det.value.trim() : '';
-        }
-      });
+   
       data[g.key] = obj;
     });
     return data;
