@@ -767,7 +767,7 @@ if(newShared.companyName !== state.shared.companyName){
     if(idx>=0) state.records[idx] = record; else state.records.push(record);
     state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
 try {
-  const res = await fetch("https://script.google.com/macros/s/AKfycbzEcDv03PRUqMihgDw0uTXLkSXWhm-FJIkhjaxsCW7AqyvIoswp3YVzadhZd7LuKKuqIw/exec", {
+  const res = await fetch("https://script.google.com/macros/s/AKfycbxlpoIO6QuIDaB4JPjbwaXS-Ri9lvCTiEBU5poEItssrLGf-rc2i2PsxJ5LVJxmrymUXA/exec", {
 method: "POST",
   body: JSON.stringify(record)
 });
