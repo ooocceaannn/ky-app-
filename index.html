@@ -150,22 +150,7 @@
   #ky-app .worker-row{display:grid;grid-template-columns:22px 1fr 70px 28px;gap:8px;align-items:center;margin-bottom:8px;}
   #ky-app .worker-row select{border:1px solid var(--border);border-radius:6px;padding:9px 4px;background:var(--surface-alt);font-size:13px;}
 
-  /* checklist groups */
-  #ky-app .chk-groups{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  @media(max-width:620px){#ky-app .chk-groups{grid-template-columns:1fr;}}
-  #ky-app .chk-group-title{font-size:12px;font-weight:700;color:var(--navy-soft);border-bottom:2px solid var(--border);padding-bottom:4px;margin-bottom:8px;}
-  #ky-app .chk-list{display:flex;flex-wrap:wrap;gap:7px;}
-  #ky-app .chk{
-    display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;
-    padding:8px 12px;background:var(--surface-alt);font-size:13px;user-select:none;
-  }
-  #ky-app .chk:has(input:checked){background:var(--orange);border-color:var(--orange);color:#fff;font-weight:700;}
-  #ky-app .chk input{accent-color:var(--orange);width:16px;height:16px;}
-  #ky-app .detail-input{
-    margin-top:6px;width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:13px;background:var(--surface-alt);
-  }
-  #ky-app .detail-input.hidden{display:none;}
-  #ky-app .chk-item-wrap{display:flex;flex-direction:column;}
+
 
   /* result toggle */
   #ky-app .result-toggle{display:flex;gap:10px;margin-top:6px;}
@@ -301,25 +286,36 @@
     return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  function blankRecord(){
-    return {
-      id:null,
-      date: todayStr(),
-       startTime:'',
-       endTime:'',
-      projectName: state.shared.projectName || '',
-      companyName: state.shared.companyName || '',
-      foreman:'',
-      supervisorSeal:'', contractorSeal:'', personInChargeSeal:'',
-      enteredBy: state.personal.displayName || '',
-      workContent:'',
-      hazards:[{hazard:'',measure:''},{hazard:'',measure:''},{hazard:'',measure:''}],
-      qualified:{}, appointed:{}, ppe:{}, sling:{}, machine:{}, electric:{}, craneLift:{},
-      notes:'', result:'',
-      workers:[{name:'',qual:''},{name:'',qual:''},{name:'',qual:''}],
-      createdAt:null, updatedAt:null,
-    };
-  }
+ function blankRecord(){
+  return {
+    id:null,
+    date: todayStr(),
+    startTime:'',
+    endTime:'',
+    projectName: state.shared.projectName || '',
+    companyName: state.shared.companyName || '',
+    foreman:'',
+    supervisorSeal:'',
+    contractorSeal:'',
+    personInChargeSeal:'',
+    enteredBy: state.personal.displayName || '',
+    workContent:'',
+    hazards:[
+      {hazard:'',measure:''},
+      {hazard:'',measure:''},
+      {hazard:'',measure:''}
+    ],
+    notes:'',
+    result:'',
+    workers:[
+      {name:'',qual:''},
+      {name:'',qual:''},
+      {name:'',qual:''}
+    ],
+    createdAt:null,
+    updatedAt:null,
+  };
+}
 
   /* ---------------- toast / modal ---------------- */
   let toastTimer=null;
@@ -495,31 +491,7 @@ rec.projectName = "";
   renderForm(rec, !id);
 }
 
-  function checklistGroupHtml(group, data){
-    data = data || {};
-    return `
-      <div class="chk-group">
-        <div class="chk-group-title">${esc(group.title)}</div>
-        <div class="chk-list">
-          ${group.items.map(item=>{
-            const checked = !!data[item.id];
-            const detailId = item.detail ? `det_${group.key}_${item.detail.id}` : '';
-            const detailVal = item.detail ? (data[item.detail.id]||'') : '';
-            return `
-              <div class="chk-item-wrap">
-                <label class="chk">
-                  <input type="checkbox" data-group="${group.key}" data-id="${item.id}"
-                    ${item.detail?`data-detail-target="${detailId}"`:''} ${checked?'checked':''}>
-                  ${esc(item.label)}
-                </label>
-                ${item.detail ? `<input type="text" class="detail-input ${checked?'':'hidden'}" id="${detailId}"
-                  data-group="${group.key}" data-detailid="${item.detail.id}"
-                  placeholder="${esc(item.detail.placeholder)}" value="${esc(detailVal)}">` : ''}
-              </div>`;
-          }).join('')}
-        </div>
-      </div>`;
-  }
+ 
 
   function hazardRowHtml(h, i){
     h = h || {hazard:'',measure:''};
@@ -651,24 +623,23 @@ rec.projectName = "";
       </div>
     `;
 
-    // populate dynamic sections
-    const hazardsContainer = mainArea.querySelector('#hazardsContainer');
-    (rec.hazards && rec.hazards.length ? rec.hazards : [{hazard:'',measure:''}]).forEach((h,i)=>{
-      hazardsContainer.insertAdjacentHTML('beforeend', hazardRowHtml(h,i));
-    });
-    const workersContainer = mainArea.querySelector('#workersContainer');
-    (rec.workers && rec.workers.length ? rec.workers : [{name:'',qual:''}]).forEach((w,i)=>{
-      workersContainer.insertAdjacentHTML('beforeend', workerRowHtml(w,i));
-    });
-    const checklistContainer = mainArea.querySelector('#checklistContainer');
-    checklistContainer.innerHTML = CHECK_GROUPS.map(g=>checklistGroupHtml(g, rec[g.key])).join('');
+   // populate dynamic sections
+const hazardsContainer = mainArea.querySelector('#hazardsContainer');
+(rec.hazards && rec.hazards.length ? rec.hazards : [{hazard:'',measure:''}]).forEach((h,i)=>{
+  hazardsContainer.insertAdjacentHTML('beforeend', hazardRowHtml(h,i));
+});
 
-    updateWorkerCountHint();
+const workersContainer = mainArea.querySelector('#workersContainer');
+(rec.workers && rec.workers.length ? rec.workers : [{name:'',qual:''}]).forEach((w,i)=>{
+  workersContainer.insertAdjacentHTML('beforeend', workerRowHtml(w,i));
+});
 
-    /* ---- event wiring ---- */
-    topbarInner.querySelector('#backBtn').onclick = ()=>{ state.view='list'; renderList(); };
-    const printBtn = topbarInner.querySelector('#printBtn');
-    if(printBtn) printBtn.onclick = ()=>window.print();
+updateWorkerCountHint();
+
+/* ---- event wiring ---- */
+topbarInner.querySelector('#backBtn').onclick = ()=>{ state.view='list'; renderList(); };
+const printBtn = topbarInner.querySelector('#printBtn');
+if(printBtn) printBtn.onclick = ()=>window.print();
 
     mainArea.querySelector('#addHazardBtn').onclick = ()=>{
       const n = hazardsContainer.querySelectorAll('.hazard-row').length;
@@ -703,15 +674,7 @@ rec.projectName = "";
       if(e.target.classList.contains('worker-name')) updateWorkerCountHint();
     });
 
-    checklistContainer.addEventListener('change', e=>{
-      if(e.target.matches('input[type=checkbox][data-detail-target]')){
-        const target = document.getElementById(e.target.dataset.detailTarget);
-        if(target){
-          target.classList.toggle('hidden', !e.target.checked);
-          if(e.target.checked) target.focus();
-        }
-      }
-    });
+
 
     const resultToggle = mainArea.querySelector('#resultToggle');
     resultToggle.querySelectorAll('.result-btn').forEach(btn=>{
@@ -735,37 +698,37 @@ rec.projectName = "";
 
     state.view='form';
   }
+function collectFormData(){
+  const get = id => mainArea.querySelector('#'+id);
 
-  function collectFormData(){
-    const get = id => mainArea.querySelector('#'+id);
-    const data = {
-      date: get('f_date').value || todayStr(),
-startTime: get('f_startTime')?.value || '',
-endTime: get('f_endTime')?.value || '',
-      projectName: get('f_projectName').value.trim(),
-      companyName: get('f_companyName').value.trim(),
-      foreman: get('f_foreman').value.trim(),
-      supervisorSeal: get('f_supervisorSeal').value.trim(),
-      contractorSeal: get('f_contractorSeal').value.trim(),
-      personInChargeSeal: get('f_personInChargeSeal').value.trim(),
-      enteredBy: get('f_enteredBy').value.trim(),
-      workContent: get('f_workContent').value.trim(),
-      notes: get('f_notes').value.trim(),
-      result: mainArea.querySelector('#resultToggle').dataset.value || '',
-    };
-    data.hazards = [...mainArea.querySelectorAll('.hazard-row')].map(row=>({
-      hazard: row.querySelector('.hazard-input').value.trim(),
-      measure: row.querySelector('.measure-input').value.trim(),
-    }));
-    data.workers = [...mainArea.querySelectorAll('.worker-row')].map(row=>({
-      name: row.querySelector('.worker-name').value.trim(),
-      qual: row.querySelector('.worker-qual').value,
-    }));
-   
-      data[g.key] = obj;
-    });
-    return data;
-  }
+  const data = {
+    date: get('f_date').value || todayStr(),
+    startTime: get('f_startTime')?.value || '',
+    endTime: get('f_endTime')?.value || '',
+    projectName: get('f_projectName').value.trim(),
+    companyName: get('f_companyName').value.trim(),
+    foreman: get('f_foreman').value.trim(),
+    supervisorSeal: get('f_supervisorSeal').value.trim(),
+    contractorSeal: get('f_contractorSeal').value.trim(),
+    personInChargeSeal: get('f_personInChargeSeal').value.trim(),
+    enteredBy: get('f_enteredBy').value.trim(),
+    workContent: get('f_workContent').value.trim(),
+    notes: get('f_notes').value.trim(),
+    result: mainArea.querySelector('#resultToggle').dataset.value || '',
+  };
+
+  data.hazards = [...mainArea.querySelectorAll('.hazard-row')].map(row => ({
+    hazard: row.querySelector('.hazard-input').value.trim(),
+    measure: row.querySelector('.measure-input').value.trim(),
+  }));
+
+  data.workers = [...mainArea.querySelectorAll('.worker-row')].map(row => ({
+    name: row.querySelector('.worker-name').value.trim(),
+    qual: row.querySelector('.worker-qual').value,
+  }));
+
+  return data;
+}
 
   async function saveCurrentForm(existingId, isNew){
     const saveBtn = mainArea.querySelector('#saveBtn');
