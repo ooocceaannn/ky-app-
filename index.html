@@ -1,787 +1,994 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KY活動表</title>
+<title>現場安全管理</title>
 </head>
 <body>
-
 <style>
   :root{
-    --bg:#EDE7D8;
-    --surface:#FFFFFF;
-    --surface-alt:#F7F3E8;
-    --border:#CBC0A1;
-    --ink:#211F1A;
-    --ink-soft:#6B6452;
-    --navy:#142233;
-    --navy-soft:#1E3450;
-    --orange:#E2611B;
-    --orange-soft:#F4A876;
-    --red:#AD2B1F;
-    --green:#2C6B3F;
+    --bg:#EDE7D8;--surface:#FFFFFF;--surface-alt:#F7F3E8;--border:#CBC0A1;
+    --ink:#211F1A;--ink-soft:#6B6452;--navy:#142233;--navy-soft:#1E3450;
+    --orange:#E2611B;--orange-soft:#F4A876;--red:#AD2B1F;--green:#2C6B3F;
     --radius:10px;
     --font-body:"Hiragino Sans","Noto Sans JP","Yu Gothic","Meiryo",sans-serif;
     --font-mono:"SF Mono","Consolas","Menlo",monospace;
   }
-  *{box-sizing:border-box;}
-  #ky-app{
-    font-family:var(--font-body);
-    color:var(--ink);
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);}
+  #app{
+    font-family:var(--font-body);color:var(--ink);
     background:var(--bg);
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px);
-    background-size: 100% 28px;
-    background-position: 0 64px;
-    min-height:100%;
-    padding-bottom:60px;
+    background-image:linear-gradient(var(--border) 1px,transparent 1px);
+    background-size:100% 28px;background-position:0 92px;
+    min-height:100svh;padding-bottom:60px;
   }
-  #ky-app .container{max-width:760px;margin:0 auto;padding:0 14px;}
-  #ky-app button{font-family:inherit;cursor:pointer;}
-  #ky-app input, #ky-app select, #ky-app textarea{font-family:inherit;color:var(--ink);}
+  #app .container{max-width:760px;margin:0 auto;padding:0 14px;}
+  #app button{font-family:inherit;cursor:pointer;}
+  #app input,#app select,#app textarea{font-family:inherit;color:var(--ink);}
 
-  /* ---------- topbar ---------- */
-  #ky-app .topbar{
-    background:var(--navy);
-    color:#fff;
-    padding:14px 0;
-    position:sticky;top:0;z-index:20;
-    box-shadow:0 2px 6px rgba(0,0,0,.25);
-  }
-  #ky-app .topbar-inner{display:flex;align-items:center;gap:12px;}
-  #ky-app .stamp-mark{
-    flex:none;width:42px;height:42px;border-radius:8px;
-    background:var(--orange);color:#fff;font-weight:800;font-size:15px;
-    display:flex;align-items:center;justify-content:center;
-    transform:rotate(-5deg);letter-spacing:0;
-    box-shadow:0 2px 0 rgba(0,0,0,.3);
-  }
-  #ky-app .brand-text{flex:1;min-width:0;}
-  #ky-app .brand-text h1{font-size:14px;margin:0;font-weight:700;letter-spacing:.06em;opacity:.85;}
-  #ky-app .project-input{
-    width:100%;margin-top:2px;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.4);
-    color:#fff;font-size:17px;font-weight:700;padding:2px 0;outline:none;
-  }
-  #ky-app .project-input::placeholder{color:rgba(255,255,255,.55);}
-  #ky-app .topbar .btn{flex:none;}
-  #ky-app .back-btn{
-    flex:none;background:none;border:none;color:#fff;font-size:22px;padding:4px 8px;line-height:1;border-radius:6px;
-  }
-  #ky-app .back-btn:active{background:rgba(255,255,255,.15);}
+  /* topbar */
+  #app .topbar{background:var(--navy);color:#fff;position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+  #app .topbar-inner{display:flex;align-items:center;gap:10px;padding:10px 14px 6px;max-width:760px;margin:0 auto;}
+  #app .stamp-mark{flex:none;width:38px;height:38px;border-radius:8px;background:var(--orange);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;transform:rotate(-5deg);box-shadow:0 2px 0 rgba(0,0,0,.3);text-align:center;line-height:1.1;}
+  #app .site-name{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9;}
+  #app .site-name.empty{opacity:.5;font-style:italic;font-size:13px;}
+  #app .gear-btn{flex:none;background:none;border:none;color:rgba(255,255,255,.7);font-size:20px;padding:4px 6px;line-height:1;border-radius:6px;}
+  #app .gear-btn:active{background:rgba(255,255,255,.15);}
+  #app .back-btn{flex:none;background:none;border:none;color:#fff;font-size:24px;padding:4px 8px;line-height:1;border-radius:6px;}
+  #app .back-btn:active{background:rgba(255,255,255,.15);}
+  #app .topbar-title{flex:1;min-width:0;}
+  #app .topbar-title h1{font-size:13px;font-weight:700;letter-spacing:.06em;opacity:.8;}
 
-  /* ---------- buttons ---------- */
-  #ky-app .btn{
-    border:none;border-radius:999px;padding:10px 18px;font-weight:700;font-size:14px;
-    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
-  }
-  #ky-app .btn-primary{background:var(--orange);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.2);}
-  #ky-app .btn-primary:active{transform:translateY(1px);box-shadow:none;}
-  #ky-app .btn-primary:disabled{opacity:.6;}
-  #ky-app .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--ink);}
-  #ky-app .btn-danger{background:var(--red);color:#fff;}
-  #ky-app .btn-sm{padding:7px 13px;font-size:13px;}
-  #ky-app .btn-block{width:100%;justify-content:center;}
+  /* tab bar */
+  #app .tab-bar{display:flex;border-top:1px solid rgba(255,255,255,.12);padding:0 14px;max-width:760px;margin:0 auto;}
+  #app .tab-btn{flex:1;background:none;border:none;color:rgba(255,255,255,.5);font-family:inherit;font-size:12px;font-weight:700;padding:7px 2px 9px;border-bottom:3px solid transparent;letter-spacing:.03em;}
+  #app .tab-btn.active{color:#fff;border-bottom-color:var(--orange);}
 
-  /* ---------- toolbar / search ---------- */
-  #ky-app .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 10px;align-items:center;}
-  #ky-app .search-input{
-    flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:999px;
-    padding:10px 16px;font-size:14px;
-  }
-  #ky-app .date-input{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;font-size:13px;color:var(--ink-soft);}
-  #ky-app .toolbar .clear-btn{background:none;border:none;color:var(--ink-soft);font-size:13px;text-decoration:underline;}
+  /* buttons */
+  #app .btn{border:none;border-radius:999px;padding:10px 18px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-family:inherit;}
+  #app .btn-primary{background:var(--orange);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.2);}
+  #app .btn-primary:active{transform:translateY(1px);box-shadow:none;}
+  #app .btn-primary:disabled{opacity:.6;}
+  #app .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--ink);}
+  #app .btn-danger{background:var(--red);color:#fff;}
+  #app .btn-navy{background:var(--navy-soft);color:#fff;}
+  #app .btn-sm{padding:7px 13px;font-size:13px;}
+  #app .btn-block{width:100%;justify-content:center;}
 
-  /* ---------- list / cards ---------- */
-  #ky-app .card-list{display:flex;flex-direction:column;gap:12px;margin-top:6px;}
-  #ky-app .record-card{
-    position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-    padding:14px 16px;padding-right:78px;box-shadow:0 1px 0 rgba(0,0,0,.04);border-left:4px solid var(--orange);
-  }
-  #ky-app .record-card:active{background:var(--surface-alt);}
-  #ky-app .record-date{font-family:var(--font-mono);font-weight:700;font-size:13px;color:var(--navy-soft);letter-spacing:.02em;}
-  #ky-app .record-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
-  #ky-app .record-work{font-size:14px;margin-top:8px;line-height:1.4;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-  #ky-app .record-work.empty{color:var(--ink-soft);font-style:italic;}
-  #ky-app .record-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--ink-soft);}
-  #ky-app .stamp{
-    position:absolute;top:14px;right:14px;width:54px;height:54px;border-radius:50%;
-    border:2px solid var(--ink-soft);display:flex;align-items:center;justify-content:center;
-    transform:rotate(-9deg);font-weight:800;font-size:12px;text-align:center;opacity:.85;letter-spacing:.02em;
-  }
-  #ky-app .stamp.ok{border-color:var(--green);color:var(--green);}
-  #ky-app .stamp.ng{border-color:var(--red);color:var(--red);}
-  #ky-app .stamp.pending{border-color:var(--ink-soft);color:var(--ink-soft);font-size:10px;}
+  /* toolbar */
+  #app .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 10px;align-items:center;}
+  #app .search-input{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 16px;font-size:14px;}
+  #app .date-input{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 14px;font-size:13px;color:var(--ink-soft);}
+  #app .clear-btn{background:none;border:none;color:var(--ink-soft);font-size:13px;text-decoration:underline;font-family:inherit;}
 
-  #ky-app .empty-state{text-align:center;padding:54px 20px;color:var(--ink-soft);}
-  #ky-app .empty-state .big{font-size:34px;margin-bottom:8px;}
-
-  /* ---------- form layout ---------- */
-  #ky-app .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:16px;overflow:hidden;}
-  #ky-app .section-head{
-    background:var(--navy-soft);color:#fff;padding:9px 14px;font-weight:700;font-size:13px;letter-spacing:.08em;
+  /* date accordion */
+  #app .date-group{margin-bottom:10px;}
+  #app .date-group-hd{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:var(--navy-soft);color:#fff;
+    border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;user-select:none;
   }
-  #ky-app .section-body{padding:14px;}
-  #ky-app .field{margin-bottom:12px;}
-  #ky-app .field:last-child{margin-bottom:0;}
-  #ky-app .field label{display:block;font-size:12px;color:var(--ink-soft);font-weight:700;margin-bottom:4px;}
-  #ky-app .field input[type=text], #ky-app .field input[type=date], #ky-app .field input[type=number], #ky-app .field textarea{
+  #app .date-group-hd.today{background:var(--orange);}
+  #app .date-group-arrow{display:inline-block;transition:transform .2s;font-size:10px;margin-left:4px;}
+  #app .date-group-hd[aria-expanded="true"] .date-group-arrow{transform:rotate(180deg);}
+  #app .date-group-body{display:none;padding-top:8px;}
+  #app .date-group-body.open{display:block;}
+
+  /* cards */
+  #app .card-list{display:flex;flex-direction:column;gap:10px;}
+  #app .record-card{
+    position:relative;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:14px 16px;padding-right:76px;
+    box-shadow:0 1px 0 rgba(0,0,0,.04);border-left:4px solid var(--orange);cursor:pointer;
+  }
+  #app .record-card.shinki-card{border-left-color:var(--navy-soft);}
+  #app .record-card.readonly-card{cursor:default;}
+  #app .record-card.readonly-card:active{background:var(--surface);}
+  #app .record-card:active{background:var(--surface-alt);}
+  #app .record-date{font-family:var(--font-mono);font-weight:700;font-size:13px;color:var(--navy-soft);letter-spacing:.02em;}
+  #app .record-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  #app .record-name{font-size:15px;font-weight:700;margin-top:6px;}
+  #app .record-work{font-size:14px;margin-top:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  #app .record-work.empty{color:var(--ink-soft);font-style:italic;}
+  #app .record-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--ink-soft);}
+  #app .stamp{position:absolute;top:14px;right:12px;width:48px;height:48px;border-radius:50%;border:2px solid var(--ink-soft);display:flex;align-items:center;justify-content:center;transform:rotate(-9deg);font-weight:800;font-size:11px;text-align:center;opacity:.85;}
+  #app .stamp.ok{border-color:var(--green);color:var(--green);}
+  #app .stamp.ng{border-color:var(--red);color:var(--red);}
+  #app .stamp.pending{border-color:var(--ink-soft);color:var(--ink-soft);}
+  #app .empty-state{text-align:center;padding:50px 20px;color:var(--ink-soft);}
+  #app .empty-state .big{font-size:34px;margin-bottom:8px;}
+
+  /* form */
+  #app .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:16px;overflow:hidden;}
+  #app .section-head{background:var(--navy-soft);color:#fff;padding:9px 14px;font-weight:700;font-size:13px;letter-spacing:.08em;}
+  #app .section-body{padding:14px;}
+  #app .field{margin-bottom:12px;}
+  #app .field:last-child{margin-bottom:0;}
+  #app .field label{display:block;font-size:12px;color:var(--ink-soft);font-weight:700;margin-bottom:4px;}
+  #app .field input[type=text],#app .field input[type=date],#app .field input[type=time],
+  #app .field input[type=tel],#app .field input[type=number],#app .field textarea{
     width:100%;border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-size:14px;background:var(--surface-alt);
   }
-  #ky-app .field textarea{resize:vertical;min-height:64px;}
-  #ky-app .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  #ky-app .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-  @media(max-width:520px){#ky-app .row3{grid-template-columns:1fr;}}
-
-  #ky-app .worker-count-hint{font-size:12px;color:var(--ink-soft);margin-top:-4px;margin-bottom:10px;}
+  #app .field textarea{resize:vertical;min-height:64px;}
+  #app .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  #app .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
 
   /* hazard rows */
-  #ky-app .hazard-row{display:grid;grid-template-columns:22px 1fr 1fr 28px;gap:8px;align-items:start;margin-bottom:8px;}
-  #ky-app .hazard-row textarea{min-height:54px;}
-  @media(max-width:560px){#ky-app .hazard-row{grid-template-columns:18px 1fr 28px;}#ky-app .hazard-row .measure-input{grid-column:2;}}
-  #ky-app .row-num{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);padding-top:10px;text-align:center;}
-  #ky-app .row-remove{background:none;border:none;color:var(--red);font-size:16px;padding-top:6px;}
-  #ky-app .hazard-cols-label{display:grid;grid-template-columns:22px 1fr 1fr 28px;gap:8px;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
-  @media(max-width:560px){#ky-app .hazard-cols-label{display:none;}}
+  #app .hazard-cols-label{display:grid;grid-template-columns:22px 1fr 1fr 28px;gap:8px;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  #app .hazard-row{display:grid;grid-template-columns:22px 1fr 1fr 28px;gap:8px;align-items:start;margin-bottom:8px;}
+  #app .hazard-row textarea{min-height:54px;}
+  #app .row-num{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);padding-top:10px;text-align:center;}
+  #app .row-remove{background:none;border:none;color:var(--red);font-size:16px;padding-top:6px;font-family:inherit;}
+  @media(max-width:560px){
+    #app .hazard-cols-label{display:none;}
+    #app .hazard-row{grid-template-columns:18px 1fr 28px;}
+    #app .hazard-row .measure-input{grid-column:2;}
+  }
 
   /* worker rows */
-  #ky-app .worker-row{display:grid;grid-template-columns:22px 1fr 28px;gap:8px;align-items:center;margin-bottom:8px;}
-
-
+  #app .worker-row{display:grid;grid-template-columns:22px 1fr 28px;gap:8px;align-items:center;margin-bottom:8px;}
+  #app .worker-count-hint{font-size:12px;color:var(--ink-soft);margin-top:-4px;margin-bottom:10px;}
+  #app .add-row-btn{margin-top:4px;background:none;border:1px dashed var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--navy-soft);font-weight:700;font-family:inherit;}
 
   /* result toggle */
-  #ky-app .result-toggle{display:flex;gap:10px;margin-top:6px;}
-  #ky-app .result-btn{flex:1;border:2px solid var(--border);border-radius:8px;padding:12px;font-weight:700;background:var(--surface-alt);font-size:14px;}
-  #ky-app .result-btn.active.result-ok{border-color:var(--green);background:#E5F1E7;color:var(--green);}
-  #ky-app .result-btn.active.result-ng{border-color:var(--red);background:#F7E7E5;color:var(--red);}
+  #app .result-toggle{display:flex;gap:10px;margin-top:6px;}
+  #app .result-btn{flex:1;border:2px solid var(--border);border-radius:8px;padding:12px;font-weight:700;background:var(--surface-alt);font-size:14px;font-family:inherit;}
+  #app .result-btn.active.result-ok{border-color:var(--green);background:#E5F1E7;color:var(--green);}
+  #app .result-btn.active.result-ng{border-color:var(--red);background:#F7E7E5;color:var(--red);}
 
-  /* sticky save bar */
-  #ky-app .save-bar{
-    position:sticky;bottom:0;background:var(--bg);padding:14px 0 18px;display:flex;gap:10px;
-    border-top:1px solid var(--border);margin-top:18px;
+  /* yes/no toggle */
+  #app .yn-toggle{display:flex;gap:8px;margin-top:4px;}
+  #app .yn-btn{flex:1;border:2px solid var(--border);border-radius:8px;padding:9px;font-weight:700;background:var(--surface-alt);font-size:14px;font-family:inherit;}
+  #app .yn-btn.active{border-color:var(--orange);background:#FEF0E6;color:var(--orange);}
+
+  /* qualification checkboxes */
+  #app .qual-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+  #app .qual-item{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--bg);}
+  #app .qual-item input[type=checkbox]{width:18px;height:18px;accent-color:var(--orange);flex:none;}
+  #app .qual-item label{font-size:13px;cursor:pointer;line-height:1.3;}
+  @media(max-width:500px){#app .qual-grid{grid-template-columns:1fr;}}
+
+  /* save bar */
+  #app .save-bar{position:sticky;bottom:0;background:var(--bg);padding:14px 0 18px;display:flex;gap:10px;border-top:1px solid var(--border);margin-top:18px;}
+
+  /* photo */
+  #app .photo-preview{
+    width:100%;min-height:200px;border-radius:10px;
+    background:var(--surface-alt);border:2px dashed var(--border);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;cursor:pointer;margin-bottom:14px;
   }
+  #app .photo-preview img{width:100%;height:100%;object-fit:cover;display:block;}
+  #app .ph-hint{color:var(--ink-soft);text-align:center;line-height:1.8;padding:20px;}
+  #app .ph-icon{font-size:36px;display:block;}
 
-  #ky-app .add-row-btn{margin-top:4px;background:none;border:1px dashed var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--navy-soft);font-weight:700;}
+  /* overview */
+  #app .ov-row{display:flex;gap:10px;margin-bottom:8px;font-size:14px;line-height:1.4;}
+  #app .ov-row:last-child{margin-bottom:0;}
+  #app .ov-label{color:var(--ink-soft);font-size:12px;font-weight:700;min-width:80px;padding-top:2px;flex:none;}
+  #app .ov-value{flex:1;}
+  #app .ov-pre{white-space:pre-wrap;font-size:13px;line-height:1.7;background:var(--surface-alt);border-radius:6px;padding:10px 12px;}
 
-  /* toast & modal */
-  #ky-app .toast{
-    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;
-    padding:11px 18px;border-radius:999px;font-size:13px;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.3);
-    opacity:0;transition:opacity .25s;
+  /* settings drawer */
+  #app .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
+  #app .settings-drawer{background:var(--bg);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-width:760px;max-height:92svh;display:flex;flex-direction:column;overflow:hidden;}
+  #app .settings-handle{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:var(--navy);color:#fff;font-weight:700;font-size:15px;}
+  #app .settings-close{background:none;border:none;color:rgba(255,255,255,.7);font-size:22px;font-family:inherit;line-height:1;}
+  #app .settings-scroll{flex:1;overflow-y:auto;padding:14px;}
+  #app .site-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;}
+  #app .site-card.active-site{border-color:var(--orange);border-width:2px;}
+  #app .site-card-name{font-size:16px;font-weight:700;margin-bottom:4px;}
+  #app .site-card-badge{display:inline-block;background:var(--orange);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:8px;}
+  #app .site-card-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  #app .sfield{margin-bottom:14px;}
+  #app .sfield label{display:block;font-size:12px;color:var(--ink-soft);font-weight:700;margin-bottom:4px;}
+  #app .sfield input,#app .sfield textarea{width:100%;border:1px solid var(--border);border-radius:6px;padding:9px 10px;font-size:14px;background:var(--surface);font-family:inherit;}
+  #app .sfield textarea{resize:vertical;min-height:80px;}
+  #app .stitle{font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.1em;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+
+  /* toast / modal */
+  #app .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:opacity .25s;pointer-events:none;}
+  #app .toast.show{opacity:1;}
+  #app .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+  #app .modal-box{background:#fff;border-radius:var(--radius);padding:20px;max-width:340px;width:100%;}
+  #app .modal-box p{font-size:14px;margin:0 0 16px;line-height:1.5;}
+  #app .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+  #app .loading-state{text-align:center;padding:60px 20px;color:var(--ink-soft);}
+  #app .form-title{font-size:17px;font-weight:700;margin:14px 0 0;}
+  #app .form-subtitle{font-size:12px;color:var(--ink-soft);margin:2px 0 0;}
+  #app .setup-screen{text-align:center;padding:60px 20px;}
+  #app .setup-screen .icon{font-size:48px;margin-bottom:16px;}
+  #app .setup-screen p{color:var(--ink-soft);margin-bottom:20px;line-height:1.6;}
+
+  @media(max-width:768px){
+    #app .row2,#app .row3{grid-template-columns:1fr;}
+    #app input,#app textarea,#app select{font-size:16px;}
+    #app .btn{min-height:44px;}
   }
-  #ky-app .toast.show{opacity:1;}
-  #ky-app .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
-  #ky-app .modal-box{background:#fff;border-radius:var(--radius);padding:20px;max-width:340px;width:100%;}
-  #ky-app .modal-box p{font-size:14px;margin:0 0 16px;line-height:1.5;}
-  #ky-app .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
-
-  #ky-app .loading-state{text-align:center;padding:60px 20px;color:var(--ink-soft);}
-  #ky-app .form-title{font-size:18px;font-weight:700;margin:14px 0 0;}
-  #ky-app .form-subtitle{font-size:12px;color:var(--ink-soft);margin:2px 0 0;}
-@media(max-width:768px){
-
-  #ky-app .row2,
-  #ky-app .row3{
-    grid-template-columns:1fr;
-  }
-
-  #ky-app input,
-  #ky-app textarea,
-  #ky-app select{
-    font-size:16px;
-  }
-
-  #ky-app .btn{
-    min-height:48px;
-    font-size:16px;
-  }
-
-  #ky-app .chk{
-    padding:12px 16px;
-    font-size:15px;
-  }
-
-  #ky-app .record-work{
-    font-size:16px;
-  }
-}
   @media print{
-    #ky-app .topbar, #ky-app .save-bar, #ky-app .toolbar, #ky-app .row-remove, #ky-app .add-row-btn, #ky-app .btn{display:none !important;}
-    #ky-app{background:#fff;}
-    #ky-app .section{border:1px solid #999;break-inside:avoid;}
-    #ky-app input, #ky-app textarea, #ky-app select{background:transparent !important;border:none !important;}
+    #app .topbar,#app .save-bar,#app .toolbar,#app .row-remove,#app .add-row-btn,#app .btn{display:none !important;}
+    #app{background:#fff;}
+    #app .section{border:1px solid #999;break-inside:avoid;}
+    #app input,#app textarea{background:transparent !important;border:none !important;}
   }
 </style>
 
-<div id="ky-app">
-  <div class="topbar">
-    <div class="container topbar-inner" id="topbarInner"></div>
+<div id="app">
+  <div class="topbar" id="topbar">
+    <div class="topbar-inner" id="topbarInner"></div>
+    <div id="tabBarWrap"><div class="tab-bar" id="tabBar"></div></div>
   </div>
   <div class="container" id="mainArea"></div>
 </div>
 
 <script>
 (function(){
-  const root = document.getElementById('ky-app');
-  const topbarInner = document.getElementById('topbarInner');
-  const mainArea = document.getElementById('mainArea');
+  const appEl=document.getElementById('app');
+  const tbInner=document.getElementById('topbarInner');
+  const tabBarWrap=document.getElementById('tabBarWrap');
+  const tabBar=document.getElementById('tabBar');
+  const mainArea=document.getElementById('mainArea');
 
+  /* ---- CONSTANTS ---- */
+  const TABS=[
+    {id:'ky',   label:'KY活動'},
+    {id:'shinki',label:'新規入場'},
+    {id:'photo', label:'写真報告'},
+    {id:'overview',label:'概要'},
+  ];
 
+  const QUALIFICATIONS=[
+    '玉掛業務（1t以上）','玉掛業務（1t未満）',
+    'ガス溶接作業主任者（免）','ガス溶接作業主任者（技）',
+    '型枠支保工作業主任者','地山掘削作業主任者',
+    '土止め支保工作業主任者','鉄骨組立等作業主任者',
+    '有機溶剤作業主任者','酸欠危険作業主任者',
+    '足場の組立等作業主任者','コンクリート造工作物解体作業主任者',
+    'クレーン運転士（免）','電気主任技術者（免）',
+    '電気工事士（免）','クレーン運転特別教育（1t未満）',
+    '建設用リフト運転特別教育','アーク溶接',
+    '車両系建設機械（3t以上）','車両系建設機械（3t未満）',
+    '同上基礎工事用（3t以上）','同上基礎工事用（3t未満）',
+    '高所作業車（10m以上）','高所作業車（10m未満）',
+    '法定職長教育',
+  ];
 
-  let state = {
-    view:'loading',
-    records:[],
-    shared:{ projectName:'', companyName:'' },
-    personal:{ displayName:'' },
-    currentId:null,
+  /* ---- STATE ---- */
+  let state={
+    tab:'ky',
+    config:{currentSiteId:null,sites:[]},
+    ky:{
+      view:'list',records:[],
+      sharedRecords:[],fetchStatus:'idle',
+      openDates:new Set(),
+      currentId:null,filter:{q:'',date:''},
+      shared:{companyName:''},personal:{displayName:''},
+    },
+    shinki:{view:'list',records:[],currentId:null,filter:{q:''}},
   };
 
-  /* ---------------- storage helpers ---------------- */
-  async function sGet(key, shared){
-    try{
-      return localStorage.getItem(key);
-    }catch(e){ return null; }
-  }
-  async function sSet(key, value, shared){
-    try{
-      localStorage.setItem(key, value);
-      return true;
-    }catch(e){ return false; }
-  }
-  async function sDelete(key, shared){
-    try{
-      localStorage.removeItem(key);
-      return true;
-    }catch(e){ return false; }
-  }
-  async function sList(prefix, shared){
-    try{
-      const keys = [];
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k && k.startsWith(prefix)) keys.push(k);
-      }
-      return keys;
-    }catch(e){ return []; }
-  }
+  /* ---- STORAGE ---- */
+  function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+  function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
+  function lsDel(k){try{localStorage.removeItem(k);return true;}catch(e){return false;}}
+  function lsKeys(p){const a=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(p))a.push(k);}}catch(e){}return a;}
 
-  function uid(){ return 'rec_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
-  function todayStr(){
-    const d = new Date();
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  }
-  function fmtDateLabel(iso){
-    if(!iso) return '日付未設定';
-    const [y,m,d] = iso.split('-');
-    const dt = new Date(iso+'T00:00:00');
-    const wd = ['日','月','火','水','木','金','土'][dt.getDay()];
+  /* ---- UTILS ---- */
+  function uid(p){return (p||'r')+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);}
+  function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function fmtDate(iso){
+    if(!iso)return '日付未設定';
+    const[y,m,d]=iso.split('-');
+    const wd=['日','月','火','水','木','金','土'][new Date(iso+'T00:00:00').getDay()];
     return y+'年'+m+'月'+d+'日（'+wd+'）';
   }
-  function esc(s){
-    return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  function esc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function renumber(c,s){c.querySelectorAll(s).forEach((r,i)=>{const n=r.querySelector('.row-num');if(n)n.textContent=i+1;});}
 
- function blankRecord(){
-  return {
-    id:null,
-    date: todayStr(),
-    startTime:'',
-    endTime:'',
-    projectName: state.shared.projectName || '',
-    companyName: state.shared.companyName || '',
-    foreman:'',
-    supervisorSeal:'',
-    contractorSeal:'',
-    personInChargeSeal:'',
-    enteredBy: state.personal.displayName || '',
-    workContent:'',
-    hazards:[
-      {hazard:'',measure:''},
-      {hazard:'',measure:''},
-      {hazard:'',measure:''}
-    ],
-    notes:'',
-    result:'',
-    workers:[
-      {name:''},
-      {name:''},
-      {name:''}
-    ],
-    createdAt:null,
-    updatedAt:null,
-  };
-}
-
-  /* ---------------- toast / modal ---------------- */
+  /* ---- TOAST / CONFIRM ---- */
   let toastTimer=null;
   function showToast(msg){
-    let el = root.querySelector('.toast');
-    if(!el){ el = document.createElement('div'); el.className='toast'; root.appendChild(el); }
-    el.textContent = msg;
-    el.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+    let el=appEl.querySelector('.toast');
+    if(!el){el=document.createElement('div');el.className='toast';appEl.appendChild(el);}
+    el.textContent=msg;el.classList.add('show');
+    clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2400);
   }
-  function showConfirm(message, onYes){
-    const overlay = document.createElement('div');
-    overlay.className='modal-overlay';
-    overlay.innerHTML = `
-      <div class="modal-box">
-        <p>${esc(message)}</p>
-        <div class="modal-actions">
-          <button class="btn btn-ghost btn-sm" id="modalCancel">キャンセル</button>
-          <button class="btn btn-danger btn-sm" id="modalOk">削除する</button>
-        </div>
-      </div>`;
-    root.appendChild(overlay);
-    overlay.querySelector('#modalCancel').onclick = ()=>overlay.remove();
-    overlay.querySelector('#modalOk').onclick = ()=>{ overlay.remove(); onYes(); };
-    overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  function showConfirm(msg,onYes){
+    const ov=document.createElement('div');ov.className='modal-overlay';
+    ov.innerHTML=`<div class="modal-box"><p>${esc(msg)}</p><div class="modal-actions"><button class="btn btn-ghost btn-sm" id="mC">キャンセル</button><button class="btn btn-danger btn-sm" id="mO">削除する</button></div></div>`;
+    appEl.appendChild(ov);
+    ov.querySelector('#mC').onclick=()=>ov.remove();
+    ov.querySelector('#mO').onclick=()=>{ov.remove();onYes();};
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
   }
 
-  /* ---------------- init / load ---------------- */
-  async function init(){
+  /* ---- IMAGE RESIZE ---- */
+  function resizePhoto(file){
+    return new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const img=new Image();
+        img.onload=()=>{
+          const MAX=1200,ratio=Math.min(MAX/img.width,MAX/img.height,1);
+          const w=Math.round(img.width*ratio),h=Math.round(img.height*ratio);
+          const canvas=document.createElement('canvas');
+          canvas.width=w;canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          resolve({base64:canvas.toDataURL('image/jpeg',0.82).split(',')[1],mimeType:'image/jpeg',fileName:file.name.replace(/\.[^.]+$/,'.jpg')});
+        };
+        img.src=ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* ---- INIT ---- */
+  function init(){
     renderLoading();
-    const [sharedRaw, personalRaw, keys] = await Promise.all([
-      sGet('settings:shared', true),
-      sGet('settings:personal', false),
-      sList('record:', true),
-    ]);
-    if(sharedRaw){ try{ state.shared = JSON.parse(sharedRaw); }catch(e){} }
-    if(personalRaw){ try{ state.personal = JSON.parse(personalRaw); }catch(e){} }
+    const cfgRaw=lsGet('app:config');
+    if(cfgRaw){try{state.config=JSON.parse(cfgRaw);}catch(e){}}
+    if(!state.config.sites)state.config.sites=[];
+    if(!state.config.currentSiteId&&state.config.sites.length>0)state.config.currentSiteId=state.config.sites[0].id;
 
-    const recs = await Promise.all(keys.map(k=>sGet(k.startsWith('record:')?k:'record:'+k, true)));
-    state.records = recs.filter(Boolean).map(r=>{ try{ return JSON.parse(r); }catch(e){ return null; } }).filter(Boolean);
-    state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
-
-    state.view = 'list';
-    renderList();
-  }
-
-  function renderLoading(){
-    topbarInner.innerHTML = `
-      <div class="stamp-mark">KY</div>
-      <div class="brand-text"><h1>KY活動表・作業前点検</h1></div>`;
-    mainArea.innerHTML = `<div class="loading-state">読み込み中…</div>`;
-  }
-
-  /* ================= LIST VIEW ================= */
-  let listFilter = { q:'', date:'' };
-
-  function renderList(){
-    topbarInner.innerHTML = `
-      <div class="stamp-mark">KY</div>
-      <div class="brand-text">
-        <h1>KY活動表・作業前点検</h1>
-      
-      </div>
-      <button class="btn btn-primary" id="newRecordBtn">＋ 新規作成</button>`;
-
-    mainArea.innerHTML = `
-      <div class="toolbar">
-        <input type="text" class="search-input" id="searchInput" placeholder="作業内容・会社名・職長名で検索" value="${esc(listFilter.q)}">
-        <input type="date" class="date-input" id="dateFilterInput" value="${esc(listFilter.date)}">
-        <button class="clear-btn" id="clearFilterBtn">条件をクリア</button>
-      </div>
-      <div class="card-list" id="cardListContainer"></div>`;
-
-    topbarInner.querySelector('#newRecordBtn').onclick = ()=>openForm(null);
-   
-
-    const searchInput = mainArea.querySelector('#searchInput');
-    const dateInput = mainArea.querySelector('#dateFilterInput');
-    searchInput.addEventListener('input', ()=>{ listFilter.q = searchInput.value; renderCardList(); });
-    dateInput.addEventListener('change', ()=>{ listFilter.date = dateInput.value; renderCardList(); });
-    mainArea.querySelector('#clearFilterBtn').onclick = ()=>{
-      listFilter = {q:'',date:''};
-      searchInput.value=''; dateInput.value='';
-      renderCardList();
-    };
-
-    renderCardList();
-  }
-
-  function recordMatches(r, filter){
-    if(filter.date && r.date !== filter.date) return false;
-    if(filter.q){
-      const q = filter.q.toLowerCase();
-      const hay = [r.workContent, r.companyName, r.foreman, r.notes, r.projectName,
-        ...(r.hazards||[]).map(h=>h.hazard+' '+h.measure),
-        ...(r.workers||[]).map(w=>w.name)].join(' ').toLowerCase();
-      if(!hay.includes(q)) return false;
+    // migrate old settings
+    if(state.config.sites.length===0){
+      const oldShared=lsGet('settings:shared');
+      if(oldShared){try{const s=JSON.parse(oldShared);if(s.projectName){migrateOld(s);return;}}catch(e){}}
     }
-    return true;
+
+    const kyS=lsGet('ky:shared');if(kyS)try{state.ky.shared=JSON.parse(kyS);}catch(e){}
+    const kyP=lsGet('ky:personal');if(kyP)try{state.ky.personal=JSON.parse(kyP);}catch(e){}
+    state.ky.records=lsKeys('record:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
+    sortKY();
+    state.shinki.records=lsKeys('shinki:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
+    sortShinki();
+    renderApp();
   }
 
-  function renderCardList(){
-    const container = mainArea.querySelector('#cardListContainer');
-    const filtered = state.records.filter(r=>recordMatches(r, listFilter));
-    if(filtered.length===0){
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="big">📋</div>
-          ${state.records.length===0
-            ? '記録がまだありません。「＋ 新規作成」から最初のKY活動表を作成しましょう。'
-            : '条件に合う記録が見つかりません。'}
-        </div>`;
+  function migrateOld(old){
+    const site=blankSite();site.name=old.projectName||'現場A';
+    state.config.sites.push(site);state.config.currentSiteId=site.id;saveConfig();
+    state.ky.shared={companyName:old.companyName||''};
+    state.ky.records=lsKeys('record:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);sortKY();
+    state.shinki.records=lsKeys('shinki:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);sortShinki();
+    renderApp();
+  }
+
+  function saveConfig(){lsSet('app:config',JSON.stringify(state.config));}
+  function currentSite(){return state.config.sites.find(s=>s.id===state.config.currentSiteId)||null;}
+  function renderLoading(){tbInner.innerHTML=`<div class="stamp-mark">安</div><div class="site-name">読み込み中…</div>`;tabBarWrap.style.display='none';mainArea.innerHTML=`<div class="loading-state">読み込み中…</div>`;}
+
+  /* ---- APP RENDER ---- */
+  function renderApp(){
+    const site=currentSite();
+    const isForm=(state.tab==='ky'&&state.ky.view==='form')||(state.tab==='shinki'&&state.shinki.view==='form');
+    if(isForm){tabBarWrap.style.display='none';}
+    else{renderMainTopbar(site);renderTabBar();tabBarWrap.style.display='block';}
+    if(!site&&!isForm){renderNoSite();return;}
+    if(state.tab==='ky'){if(state.ky.view==='list')renderKYList();else renderKYForm(state.ky._rec,state.ky._isNew);}
+    else if(state.tab==='shinki'){if(state.shinki.view==='list')renderShinkiList();else renderShinkiForm(state.shinki._rec,state.shinki._isNew);}
+    else if(state.tab==='photo')renderPhotoTab();
+    else renderOverview(site);
+  }
+
+  function renderMainTopbar(site){
+    tbInner.innerHTML=`<div class="stamp-mark">安</div><div class="site-name ${site?'':'empty'}">${site?esc(site.name):'現場未設定'}</div><button class="gear-btn" id="gearBtn">⚙</button>`;
+    tbInner.querySelector('#gearBtn').onclick=()=>openSettings();
+  }
+
+  function renderTabBar(){
+    tabBar.innerHTML=TABS.map(t=>`<button class="tab-btn${state.tab===t.id?' active':''}" data-tab="${t.id}">${t.label}</button>`).join('');
+    tabBar.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.onclick=()=>{
+        if(state.tab===btn.dataset.tab)return;
+        state.tab=btn.dataset.tab;
+        state.ky.view='list';state.shinki.view='list';
+        renderApp();
+      };
+    });
+  }
+
+  function renderNoSite(){
+    mainArea.innerHTML=`<div class="setup-screen"><div class="icon">🏗</div><p>現場を登録してアプリを使い始めましょう。</p><button class="btn btn-primary" id="addSiteBtn">＋ 現場を追加する</button></div>`;
+    mainArea.querySelector('#addSiteBtn').onclick=()=>openSettings(true);
+  }
+
+  /* ---- SETTINGS ---- */
+  function blankSite(){
+    return {id:uid('site'),name:'',kyWebhook:'',shinkiWebhook:'',photoWebhook:'',photoEmail:'',
+      overview:{projectName:'',client:'',designer:'',contractor:'',periodStart:'',periodEnd:'',location:'',structure:'',area:'',cycleText:'',safetyText:'',contactName:'',contactPhone:''}};
+  }
+
+  function openSettings(forceAdd=false){
+    const ov=document.createElement('div');ov.className='settings-overlay';ov.id='settOv';appEl.appendChild(ov);
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    if(forceAdd&&state.config.sites.length===0)renderSiteEdit(ov,blankSite(),true);
+    else renderSiteList(ov);
+  }
+
+  function renderSiteList(ov){
+    const sites=state.config.sites;
+    ov.innerHTML=`<div class="settings-drawer">
+      <div class="settings-handle"><span>⚙ 設定</span><button class="settings-close" id="sC">✕</button></div>
+      <div class="settings-scroll">
+        ${sites.length===0?'<div class="empty-state" style="padding:30px 0;"><div class="big">🏗</div>現場が登録されていません</div>':
+          sites.map(s=>`<div class="site-card ${s.id===state.config.currentSiteId?'active-site':''}">
+            <div class="site-card-name">${esc(s.name)||'（名前未設定）'}${s.id===state.config.currentSiteId?'<span class="site-card-badge">使用中</span>':''}</div>
+            <div style="font-size:12px;color:var(--ink-soft);">KY: ${s.kyWebhook?'設定済':'未設定'} ／ 新規: ${s.shinkiWebhook?'設定済':'未設定'} ／ 写真: ${s.photoWebhook?'設定済':'未設定'}</div>
+            <div class="site-card-actions">
+              ${s.id!==state.config.currentSiteId?`<button class="btn btn-navy btn-sm" data-act="${s.id}">この現場に切替</button>`:''}
+              <button class="btn btn-ghost btn-sm" data-edit="${s.id}">編集</button>
+              <button class="btn btn-danger btn-sm" data-del="${s.id}">削除</button>
+            </div></div>`).join('')}
+        <button class="btn btn-primary btn-block" id="addSBtn" style="margin-top:4px;">＋ 現場を追加</button>
+      </div></div>`;
+    ov.querySelector('#sC').onclick=()=>ov.remove();
+    ov.querySelector('#addSBtn').onclick=()=>renderSiteEdit(ov,blankSite(),true);
+    ov.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{state.config.currentSiteId=b.dataset.act;saveConfig();ov.remove();renderApp();});
+    ov.querySelectorAll('[data-edit]').forEach(b=>{ const s=state.config.sites.find(s=>s.id===b.dataset.edit);if(s)b.onclick=()=>renderSiteEdit(ov,s,false);});
+    ov.querySelectorAll('[data-del]').forEach(b=>{
+      b.onclick=()=>{
+        const nm=state.config.sites.find(s=>s.id===b.dataset.del)?.name||'この現場';
+        showConfirm(`「${nm}」を削除します。記録データは残ります。`,()=>{
+          state.config.sites=state.config.sites.filter(s=>s.id!==b.dataset.del);
+          if(state.config.currentSiteId===b.dataset.del)state.config.currentSiteId=state.config.sites[0]?.id||null;
+          saveConfig();renderSiteList(ov);renderApp();
+        });
+      };
+    });
+  }
+
+  function renderSiteEdit(ov,site,isNew){
+    const o=site.overview||{};
+    ov.innerHTML=`<div class="settings-drawer">
+      <div class="settings-handle">
+        <button class="settings-close" id="sBack" style="font-size:16px;font-weight:700;">‹</button>
+        <span>${isNew?'現場を追加':'現場を編集'}</span>
+        <button class="settings-close" id="sEC">✕</button>
+      </div>
+      <div class="settings-scroll" id="seScroll">
+        <div class="stitle">現場情報</div>
+        <div class="sfield"><label>現場名 *</label><input type="text" id="se_name" value="${esc(site.name)}" placeholder="○○工事現場"></div>
+        <div class="stitle">Webhook URL（GAS）</div>
+        <div class="sfield"><label>KY活動 送信先</label><input type="text" id="se_ky" value="${esc(site.kyWebhook)}" placeholder="https://script.google.com/..."></div>
+        <div class="sfield"><label>新規入場者 送信先</label><input type="text" id="se_sk" value="${esc(site.shinkiWebhook)}" placeholder="https://script.google.com/..."></div>
+        <div class="sfield"><label>写真報告 送信先</label><input type="text" id="se_ph" value="${esc(site.photoWebhook)}" placeholder="https://script.google.com/..."></div>
+        <div class="sfield"><label>写真報告 送信先メールアドレス</label><input type="text" id="se_email" value="${esc(site.photoEmail)}" placeholder="example@gmail.com"></div>
+        <div class="stitle">工事概要</div>
+        <div class="sfield"><label>工事名</label><input type="text" id="se_pn" value="${esc(o.projectName)}"></div>
+        <div class="sfield"><label>発注者</label><input type="text" id="se_cl" value="${esc(o.client)}"></div>
+        <div class="sfield"><label>設計監理</label><input type="text" id="se_ds" value="${esc(o.designer)}"></div>
+        <div class="sfield"><label>請負者</label><input type="text" id="se_ct" value="${esc(o.contractor)}"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div class="sfield" style="margin:0;"><label>工期 開始</label><input type="date" id="se_ps" value="${esc(o.periodStart)}"></div>
+          <div class="sfield" style="margin:0;"><label>工期 終了</label><input type="date" id="se_pe" value="${esc(o.periodEnd)}"></div>
+        </div>
+        <div class="sfield"><label>場所</label><input type="text" id="se_loc" value="${esc(o.location)}"></div>
+        <div class="sfield"><label>構造・規模</label><input type="text" id="se_st" value="${esc(o.structure)}"></div>
+        <div class="sfield"><label>延べ面積</label><input type="text" id="se_ar" value="${esc(o.area)}"></div>
+        <div class="stitle">施工サイクル</div>
+        <div class="sfield"><label>時間と内容（1行ずつ）</label><textarea id="se_cy" rows="6" placeholder="8:00　朝礼・KYM&#10;10:00　休憩&#10;12:00　昼食&#10;17:00　作業終了・片付け">${esc(o.cycleText)}</textarea></div>
+        <div class="stitle">作業所安全遵守事項</div>
+        <div class="sfield"><textarea id="se_sf" rows="8" placeholder="遵守事項を入力…">${esc(o.safetyText)}</textarea></div>
+        <div class="stitle">担当者連絡先</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div class="sfield" style="margin:0;"><label>氏名</label><input type="text" id="se_cn" value="${esc(o.contactName)}"></div>
+          <div class="sfield" style="margin:0;"><label>TEL</label><input type="text" id="se_cp" value="${esc(o.contactPhone)}"></div>
+        </div>
+        <div style="padding-bottom:20px;display:flex;gap:10px;">
+          <button class="btn btn-primary btn-block" id="se_save">保存する</button>
+        </div>
+      </div></div>`;
+    ov.querySelector('#sBack').onclick=()=>renderSiteList(ov);
+    ov.querySelector('#sEC').onclick=()=>ov.remove();
+    ov.querySelector('#se_save').onclick=()=>{
+      const g=id=>ov.querySelector('#'+id).value.trim();
+      const name=g('se_name');if(!name){showToast('現場名を入力してください');return;}
+      site.name=name;site.kyWebhook=g('se_ky');site.shinkiWebhook=g('se_sk');site.photoWebhook=g('se_ph');site.photoEmail=g('se_email');
+      site.overview={projectName:g('se_pn'),client:g('se_cl'),designer:g('se_ds'),contractor:g('se_ct'),
+        periodStart:g('se_ps'),periodEnd:g('se_pe'),location:g('se_loc'),structure:g('se_st'),area:g('se_ar'),
+        cycleText:ov.querySelector('#se_cy').value,safetyText:ov.querySelector('#se_sf').value,contactName:g('se_cn'),contactPhone:g('se_cp')};
+      if(isNew){state.config.sites.push(site);if(!state.config.currentSiteId)state.config.currentSiteId=site.id;}
+      saveConfig();showToast('保存しました');ov.remove();renderApp();
+    };
+  }
+
+  /* ============================================================
+     KY MODULE
+  ============================================================ */
+  function blankKYRecord(){
+    return {id:null,siteId:state.config.currentSiteId,date:todayStr(),startTime:'',endTime:'',
+      projectName:currentSite()?.overview?.projectName||state.ky.shared.projectName||'',
+      companyName:state.ky.shared.companyName||'',
+      foreman:'',personInChargeSeal:'',enteredBy:state.ky.personal.displayName||'',
+      workContent:'',hazards:[{hazard:'',measure:''},{hazard:'',measure:''},{hazard:'',measure:''}],
+      notes:'',result:'',workers:[{name:''},{name:''},{name:''}],createdAt:null,updatedAt:null};
+  }
+  function sortKY(){state.ky.records.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));}
+
+  function kyHazardHtml(h,i){h=h||{hazard:'',measure:''};return `<div class="hazard-row" data-row><div class="row-num">${i+1}</div><textarea class="hazard-input" placeholder="どんな危険が潜んでいるか" rows="2">${esc(h.hazard)}</textarea><textarea class="measure-input" placeholder="だから私達はこうします" rows="2">${esc(h.measure)}</textarea><button type="button" class="row-remove">✕</button></div>`;}
+  function kyWorkerHtml(w,i){w=w||{name:''};return `<div class="worker-row" data-row><div class="row-num">${i+1}</div><input type="text" class="worker-name" placeholder="氏名" value="${esc(w.name)}"><button type="button" class="row-remove">✕</button></div>`;}
+
+  function updateWorkerHint(){
+    const h=mainArea.querySelector('#workerCountHint');
+    if(!h)return;
+    const n=[...mainArea.querySelectorAll('.worker-name')].filter(i=>i.value.trim()).length;
+    h.textContent='現在の入力人数: '+n+' 名';
+  }
+
+  /* KY shared fetch */
+  async function fetchSharedKY(){
+    const site=currentSite();
+    if(!site?.kyWebhook)return null;
+    try{
+      state.ky.fetchStatus='loading';
+      const res=await fetch(site.kyWebhook);
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const json=await res.json();
+      if(json.success&&Array.isArray(json.records)){
+        state.ky.sharedRecords=json.records;
+        state.ky.fetchStatus='ok';
+        return json.records;
+      }
+      throw new Error('bad response');
+    }catch(err){
+      console.error('KY fetch:',err);
+      state.ky.fetchStatus='error';
+      return null;
+    }
+  }
+
+  /* KY list (async) */
+  async function renderKYList(){
+    const site=currentSite();
+    const isShared=!!(site?.kyWebhook);
+    tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規</button>`;
+    mainArea.innerHTML=`
+      <div class="toolbar">
+        <input type="text" class="search-input" id="kySearch" placeholder="作業内容・会社名・職長名" value="${esc(state.ky.filter.q)}">
+        ${!isShared?`<input type="date" class="date-input" id="kyDate" value="${esc(state.ky.filter.date)}">` : `<button class="btn btn-ghost btn-sm" id="kyRefresh">↺ 更新</button>`}
+        <button class="clear-btn" id="kyClear">クリア</button>
+      </div>
+      <div id="kyAccordion">${isShared?'<div class="loading-state">共有データを取得中…</div>':''}</div>`;
+
+    tbInner.querySelector('#kyNewBtn').onclick=()=>openKYForm(null);
+    const si=mainArea.querySelector('#kySearch');
+    si.addEventListener('input',()=>{state.ky.filter.q=si.value;renderKYAccordion();});
+    const di=mainArea.querySelector('#kyDate');
+    if(di)di.addEventListener('change',()=>{state.ky.filter.date=di.value;renderKYAccordion();});
+    const rf=mainArea.querySelector('#kyRefresh');
+    if(rf)rf.onclick=async()=>{rf.textContent='取得中…';rf.disabled=true;await fetchSharedKY();renderKYAccordion();rf.textContent='↺ 更新';rf.disabled=false;};
+    mainArea.querySelector('#kyClear').onclick=()=>{state.ky.filter={q:'',date:''};si.value='';if(di)di.value='';renderKYAccordion();};
+
+    if(isShared){
+      const recs=await fetchSharedKY();
+      if(recs===null){
+        mainArea.querySelector('#kyAccordion').innerHTML=`<div class="empty-state"><div class="big">⚠️</div>データの取得に失敗しました。<br>Webhook URLまたは接続を確認してください。<br><button class="btn btn-ghost btn-sm" id="kyRetry" style="margin-top:12px;">再試行</button></div>`;
+        mainArea.querySelector('#kyRetry')?.addEventListener('click',()=>renderKYList());
+        return;
+      }
+    }
+    renderKYAccordion();
+  }
+
+  function kyCardHtml(r,readOnly){
+    const sc=r.result==='ok'?'ok':r.result==='ng'?'ng':'pending';
+    const st=r.result==='ok'?'可':r.result==='ng'?'不可':'未判定';
+    const workers=r.workers;
+    let wLabel='';
+    if(typeof workers==='string')wLabel=workers.split('、').filter(Boolean).length+'名';
+    else if(Array.isArray(workers))wLabel=workers.filter(w=>w.name&&w.name.trim()).length+'名';
+    return `<div class="record-card${readOnly?' readonly-card':''}" ${readOnly?'':` data-id="${esc(r.id||'')}"`}>
+      <div class="stamp ${sc}">${st}</div>
+      <div class="record-date">${fmtDate(r.date)}</div>
+      <div class="record-meta">${esc(r.companyName||'会社名未入力')}${r.foreman?'　職長: '+esc(r.foreman):''}</div>
+      <div class="record-work ${r.workContent?'':'empty'}">${r.workContent?esc(r.workContent):'作業内容が未入力です'}</div>
+      <div class="record-footer"><span>作業員 ${wLabel}</span><span>${esc(r.projectName||r.enteredBy||'')}</span></div>
+    </div>`;
+  }
+
+  function renderKYAccordion(){
+    const container=mainArea.querySelector('#kyAccordion');
+    if(!container)return;
+    const site=currentSite();
+    const isShared=!!(site?.kyWebhook);
+    const today=todayStr();
+
+    let records=isShared?state.ky.sharedRecords:state.ky.records.filter(r=>!r.siteId||r.siteId===state.config.currentSiteId);
+    const q=state.ky.filter.q.toLowerCase();
+    const df=state.ky.filter.date;
+    if(q||df)records=records.filter(r=>{
+      if(df&&r.date!==df)return false;
+      if(q){const h=[r.workContent,r.companyName,r.foreman,r.notes,typeof r.workers==='string'?r.workers:(r.workers||[]).map(w=>w.name).join(' ')].join(' ').toLowerCase();if(!h.includes(q))return false;}
+      return true;
+    });
+
+    if(records.length===0){
+      container.innerHTML=`<div class="empty-state"><div class="big">📋</div>${isShared?'シートに記録がありません。':'まだKY記録がありません。「＋ 新規」から作成してください。'}</div>`;
       return;
     }
-    container.innerHTML = filtered.map(r=>{
-      const stampClass = r.result==='ok' ? 'ok' : (r.result==='ng' ? 'ng' : 'pending');
-      const stampText = r.result==='ok' ? '可' : (r.result==='ng' ? '不可' : '未判定');
-      const workerCount = (r.workers||[]).filter(w=>w.name && w.name.trim()).length;
-      return `
-        <div class="record-card" data-id="${esc(r.id)}">
-          <div class="stamp ${stampClass}">${stampText}</div>
-          <div class="record-date">${fmtDateLabel(r.date)}</div>
-          <div class="record-meta">${esc(r.companyName||'会社名未入力')}${r.foreman?'　職長: '+esc(r.foreman):''}</div>
-          <div class="record-work ${r.workContent?'':'empty'}">${r.workContent ? esc(r.workContent) : '作業内容が未入力です'}</div>
-          <div class="record-footer"><span>作業員 ${workerCount}名</span><span>${esc(r.projectName||'')}</span></div>
-        </div>`;
-    }).join('');
-    container.querySelectorAll('.record-card').forEach(card=>{
-      card.addEventListener('click', ()=>openForm(card.dataset.id));
-    });
-  }
 
-  /* ================= FORM VIEW ================= */
-function openForm(id){
+    // group by date
+    const groups={};
+    records.forEach(r=>{const d=r.date||'不明';if(!groups[d])groups[d]=[];groups[d].push(r);});
+    const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
 
-  let rec;
-
-  if(id){
-    rec = JSON.parse(JSON.stringify(
-      state.records.find(r=>r.id===id)
-    ));
-  }else{
-
-    const latest = state.records[0];
-
-    if(latest){
-
-      rec = JSON.parse(JSON.stringify(latest));
-
-      rec.id = null;
-      rec.date = todayStr();
-rec.projectName = "";
-      rec.workContent = '';
-      rec.hazards = [
-        {hazard:'',measure:''},
-        {hazard:'',measure:''},
-        {hazard:'',measure:''}
-      ];
-
-      rec.notes = '';
-      rec.result = '';
-
-      rec.createdAt = null;
-      rec.updatedAt = null;
-
-    }else{
-      rec = blankRecord();
+    // default open
+    if(state.ky.openDates.size===0){
+      state.ky.openDates.add(groups[today]?today:dates[0]);
     }
-  }
 
-  state.currentId = id;
-  renderForm(rec, !id);
-}
-
- 
-
-  function hazardRowHtml(h, i){
-    h = h || {hazard:'',measure:''};
-    return `
-      <div class="hazard-row" data-row>
-        <div class="row-num">${i+1}</div>
-        <textarea class="hazard-input" placeholder="どんな危険が潜んでいるか" rows="2">${esc(h.hazard)}</textarea>
-        <textarea class="measure-input" placeholder="だから私達はこうします" rows="2">${esc(h.measure)}</textarea>
-        <button type="button" class="row-remove" title="削除">✕</button>
+    container.innerHTML=dates.map(date=>{
+      const isToday=date===today;
+      const isOpen=state.ky.openDates.has(date);
+      const recs=groups[date];
+      return `<div class="date-group">
+        <div class="date-group-hd ${isToday?'today':''}" data-date="${esc(date)}" aria-expanded="${isOpen}">
+          <span>${fmtDate(date)}${isToday?'　📅 今日':''}</span>
+          <span style="display:flex;align-items:center;gap:4px;opacity:.9;">${recs.length}件<span class="date-group-arrow">▼</span></span>
+        </div>
+        <div class="date-group-body ${isOpen?'open':''}">
+          <div class="card-list" style="padding-bottom:8px;">${recs.map(r=>kyCardHtml(r,isShared)).join('')}</div>
+        </div>
       </div>`;
-  }
-  function workerRowHtml(w, i){
-    w = w || {name:''};
-    return `
-      <div class="worker-row" data-row>
-        <div class="row-num">${i+1}</div>
-        <input type="text" class="worker-name" placeholder="氏名" value="${esc(w.name)}">
-        <button type="button" class="row-remove" title="削除">✕</button>
-      </div>`;
-  }
+    }).join('');
 
-  function renumber(container, selector){
-    container.querySelectorAll(selector).forEach((row, idx)=>{
-      const numEl = row.querySelector('.row-num');
-      if(numEl) numEl.textContent = idx+1;
-    });
-  }
-
-  function updateWorkerCountHint(){
-    const wrap = mainArea.querySelector('#workersContainer');
-    const hint = mainArea.querySelector('#workerCountHint');
-    if(!wrap || !hint) return;
-    const n = [...wrap.querySelectorAll('.worker-name')].filter(i=>i.value.trim()).length;
-    hint.textContent = '現在の入力人数: ' + n + ' 名';
-  }
-
-  function renderForm(rec, isNew){
-    topbarInner.innerHTML = `
-      <button class="back-btn" id="backBtn">‹</button>
-      <div class="brand-text">
-        <h1 style="opacity:.7">${isNew?'新規作成':'記録の編集'}</h1>
-      </div>
-      ${!isNew ? '<button class="btn btn-ghost btn-sm" id="printBtn">🖨 印刷</button>' : ''}`;
-
-    mainArea.innerHTML = `
-      <div class="form-title">${fmtDateLabel(rec.date)}</div>
-      <div class="form-subtitle">${isNew ? '新しいKY活動表・作業開始前点検表を作成します' : '内容を編集して保存できます'}</div>
-
-      <div class="section">
-        <div class="section-head">基本情報</div>
-        <div class="section-body">
-          <div class="row2">
-           <div class="field">
-  <label>日付</label>
-  <input type="date" id="f_date" value="${esc(rec.date)}">
-</div>
-            <div class="field"><label>工事名</label><input type="text" id="f_projectName" value="${esc(rec.projectName)}" placeholder="工事名"></div>
-          </div>
-          <div class="row2">
-  <div class="field">
-    <label>開始時間</label>
-    <input type="time" id="f_startTime" value="${esc(rec.startTime || '')}">
-  </div>
-
-  <div class="field">
-    <label>終了時間</label>
-    <input type="time" id="f_endTime" value="${esc(rec.endTime || '')}">
-  </div>
-</div>
-          <div class="row2">
-            <div class="field"><label>会社名</label><input type="text" id="f_companyName" value="${esc(rec.companyName)}"></div>
-            <div class="field"><label>職長</label><input type="text" id="f_foreman" value="${esc(rec.foreman)}"></div>
-          </div>
-          <div class="row3">
-            <div class="field"><label>統責者</label><input type="text" id="f_supervisorSeal" value="${esc(rec.supervisorSeal)}"></div>
-            <div class="field"><label>元方者</label><input type="text" id="f_contractorSeal" value="${esc(rec.contractorSeal)}"></div>
-            <div class="field"><label>担当者</label><input type="text" id="f_personInChargeSeal" value="${esc(rec.personInChargeSeal)}"></div>
-          </div>
-          <div class="field"><label>入力者（あなたの名前）</label><input type="text" id="f_enteredBy" value="${esc(rec.enteredBy)}" placeholder="記録者名"></div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-head">本日の作業内容</div>
-        <div class="section-body">
-          <textarea id="f_workContent" rows="3" placeholder="本日行う作業の内容を記入してください">${esc(rec.workContent)}</textarea>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-head">危険予知（どんな危険が潜んでいるか／だから私達はこうします）</div>
-        <div class="section-body">
-          <div class="hazard-cols-label"><div></div><div>危険のポイント</div><div>私たちの対策</div><div></div></div>
-          <div id="hazardsContainer"></div>
-          <button type="button" class="add-row-btn" id="addHazardBtn">＋ 項目を追加</button>
-        </div>
-      </div>
-
-
-
-      <div class="section">
-        <div class="section-head">記事・判定</div>
-        <div class="section-body">
-          <div class="field"><label>記事（特記事項）</label><textarea id="f_notes" rows="2">${esc(rec.notes)}</textarea></div>
-          <label style="font-size:12px;color:var(--ink-soft);font-weight:700;">点検結果</label>
-          <div class="result-toggle" id="resultToggle" data-value="${esc(rec.result)}">
-            <button type="button" class="result-btn result-ok ${rec.result==='ok'?'active':''}" data-value="ok">✓ 可（問題なし）</button>
-            <button type="button" class="result-btn result-ng ${rec.result==='ng'?'active':''}" data-value="ng">✕ 不可（要対応）</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-head">本日の作業員名簿</div>
-        <div class="section-body">
-          <div id="workersContainer"></div>
-          <div class="worker-count-hint" id="workerCountHint"></div>
-          <button type="button" class="add-row-btn" id="addWorkerBtn">＋ 作業員を追加</button>
-        </div>
-      </div>
-
-      <div class="save-bar">
-        <button class="btn btn-primary btn-block" id="saveBtn">${isNew?'保存する':'更新を保存'}</button>
-        ${!isNew ? '<button class="btn btn-danger btn-sm" id="deleteBtn">削除</button>' : ''}
-      </div>
-    `;
-
-   // populate dynamic sections
-const hazardsContainer = mainArea.querySelector('#hazardsContainer');
-(rec.hazards && rec.hazards.length ? rec.hazards : [{hazard:'',measure:''}]).forEach((h,i)=>{
-  hazardsContainer.insertAdjacentHTML('beforeend', hazardRowHtml(h,i));
-});
-
-const workersContainer = mainArea.querySelector('#workersContainer');
-(rec.workers && rec.workers.length ? rec.workers : [{name:''}]).forEach((w,i)=>{
-  workersContainer.insertAdjacentHTML('beforeend', workerRowHtml(w,i));
-});
-
-updateWorkerCountHint();
-
-/* ---- event wiring ---- */
-topbarInner.querySelector('#backBtn').onclick = ()=>{ state.view='list'; renderList(); };
-const printBtn = topbarInner.querySelector('#printBtn');
-if(printBtn) printBtn.onclick = ()=>window.print();
-
-    mainArea.querySelector('#addHazardBtn').onclick = ()=>{
-      const n = hazardsContainer.querySelectorAll('.hazard-row').length;
-      hazardsContainer.insertAdjacentHTML('beforeend', hazardRowHtml(null, n));
-      renumber(hazardsContainer, '.hazard-row');
-    };
-    hazardsContainer.addEventListener('click', e=>{
-      const btn = e.target.closest('.row-remove');
-      if(!btn) return;
-      const rows = hazardsContainer.querySelectorAll('.hazard-row');
-      if(rows.length<=1){ showToast('最低1項目は必要です'); return; }
-      btn.closest('.hazard-row').remove();
-      renumber(hazardsContainer, '.hazard-row');
-    });
-
-    mainArea.querySelector('#addWorkerBtn').onclick = ()=>{
-      const n = workersContainer.querySelectorAll('.worker-row').length;
-      workersContainer.insertAdjacentHTML('beforeend', workerRowHtml(null, n));
-      renumber(workersContainer, '.worker-row');
-      updateWorkerCountHint();
-    };
-    workersContainer.addEventListener('click', e=>{
-      const btn = e.target.closest('.row-remove');
-      if(!btn) return;
-      const rows = workersContainer.querySelectorAll('.worker-row');
-      if(rows.length<=1){ showToast('最低1行は必要です'); return; }
-      btn.closest('.worker-row').remove();
-      renumber(workersContainer, '.worker-row');
-      updateWorkerCountHint();
-    });
-    workersContainer.addEventListener('input', e=>{
-      if(e.target.classList.contains('worker-name')) updateWorkerCountHint();
-    });
-
-
-
-    const resultToggle = mainArea.querySelector('#resultToggle');
-    resultToggle.querySelectorAll('.result-btn').forEach(btn=>{
-      btn.onclick = ()=>{
-        const cur = resultToggle.dataset.value === btn.dataset.value ? '' : btn.dataset.value;
-        resultToggle.dataset.value = cur;
-        resultToggle.querySelectorAll('.result-btn').forEach(b=>b.classList.toggle('active', b.dataset.value===cur));
+    container.querySelectorAll('.date-group-hd').forEach(hd=>{
+      hd.onclick=()=>{
+        const d=hd.dataset.date;
+        const body=hd.nextElementSibling;
+        const nowOpen=body.classList.contains('open');
+        body.classList.toggle('open',!nowOpen);
+        hd.setAttribute('aria-expanded',String(!nowOpen));
+        if(nowOpen)state.ky.openDates.delete(d);else state.ky.openDates.add(d);
       };
     });
 
-    mainArea.querySelector('#saveBtn').onclick = ()=>saveCurrentForm(rec.id, isNew);
-    const deleteBtn = mainArea.querySelector('#deleteBtn');
-    if(deleteBtn) deleteBtn.onclick = ()=>{
-      showConfirm('この記録を削除します。元に戻せません。よろしいですか？', async ()=>{
-        await sDelete('record:'+rec.id, true);
-        state.records = state.records.filter(r=>r.id!==rec.id);
-        showToast('削除しました');
-        state.view='list'; renderList();
+    if(!isShared){
+      container.querySelectorAll('.record-card[data-id]').forEach(c=>{
+        c.addEventListener('click',()=>openKYForm(c.dataset.id));
       });
+    }
+  }
+
+  function openKYForm(id){
+    let rec;
+    if(id){rec=JSON.parse(JSON.stringify(state.ky.records.find(r=>r.id===id)||blankKYRecord()));}
+    else{
+      const latest=state.ky.records.find(r=>!r.siteId||r.siteId===state.config.currentSiteId);
+      if(latest){
+        rec=JSON.parse(JSON.stringify(latest));
+        rec.id=null;rec.date=todayStr();rec.workContent='';
+        rec.hazards=[{hazard:'',measure:''},{hazard:'',measure:''},{hazard:'',measure:''}];
+        rec.notes='';rec.result='';rec.createdAt=null;rec.updatedAt=null;
+      }else rec=blankKYRecord();
+    }
+    state.ky._rec=rec;state.ky._isNew=!id;state.ky.view='form';state.ky.currentId=id||null;
+    renderKYForm(rec,!id);
+  }
+
+  function renderKYForm(rec,isNew){
+    tbInner.innerHTML=`<button class="back-btn" id="kyBack">‹</button><div class="topbar-title"><h1>${isNew?'KY新規作成':'KY記録の編集'}</h1></div>${!isNew?'<button class="btn btn-ghost btn-sm" id="kyPrint">🖨 印刷</button>':''}`;
+    tabBarWrap.style.display='none';
+    mainArea.innerHTML=`
+      <div class="form-title">${fmtDate(rec.date)}</div>
+      <div class="form-subtitle">${isNew?'新しいKY活動表を作成します':'内容を編集して保存できます'}</div>
+      <div class="section"><div class="section-head">基本情報</div><div class="section-body">
+        <div class="row2">
+          <div class="field"><label>日付</label><input type="date" id="f_date" value="${esc(rec.date)}"></div>
+          <div class="field"><label>工事名</label><input type="text" id="f_pName" value="${esc(rec.projectName)}" placeholder="工事名"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>開始時間</label><input type="time" id="f_st" value="${esc(rec.startTime)}"></div>
+          <div class="field"><label>終了時間</label><input type="time" id="f_et" value="${esc(rec.endTime)}"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>会社名</label><input type="text" id="f_co" value="${esc(rec.companyName)}"></div>
+          <div class="field"><label>職長</label><input type="text" id="f_fo" value="${esc(rec.foreman)}"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>担当者</label><input type="text" id="f_pic" value="${esc(rec.personInChargeSeal)}"></div>
+          <div class="field"><label>入力者</label><input type="text" id="f_by" value="${esc(rec.enteredBy)}" placeholder="記録者名"></div>
+        </div>
+      </div></div>
+      <div class="section"><div class="section-head">本日の作業内容</div><div class="section-body">
+        <textarea id="f_wc" rows="3" placeholder="本日行う作業の内容">${esc(rec.workContent)}</textarea>
+      </div></div>
+      <div class="section"><div class="section-head">危険予知</div><div class="section-body">
+        <div class="hazard-cols-label"><div></div><div>危険のポイント</div><div>私たちの対策</div><div></div></div>
+        <div id="hazardsCont"></div>
+        <button type="button" class="add-row-btn" id="addHazBtn">＋ 項目を追加</button>
+      </div></div>
+      <div class="section"><div class="section-head">記事・判定</div><div class="section-body">
+        <div class="field"><label>記事（特記事項）</label><textarea id="f_notes" rows="2">${esc(rec.notes)}</textarea></div>
+        <label style="font-size:12px;color:var(--ink-soft);font-weight:700;display:block;margin-bottom:4px;">点検結果</label>
+        <div class="result-toggle" id="resultToggle" data-value="${esc(rec.result)}">
+          <button type="button" class="result-btn result-ok ${rec.result==='ok'?'active':''}" data-value="ok">✓ 可（問題なし）</button>
+          <button type="button" class="result-btn result-ng ${rec.result==='ng'?'active':''}" data-value="ng">✕ 不可（要対応）</button>
+        </div>
+      </div></div>
+      <div class="section"><div class="section-head">本日の作業員名簿</div><div class="section-body">
+        <div id="workersCont"></div>
+        <div class="worker-count-hint" id="workerCountHint"></div>
+        <button type="button" class="add-row-btn" id="addWkBtn">＋ 作業員を追加</button>
+      </div></div>
+      <div class="save-bar">
+        <button class="btn btn-primary btn-block" id="kySaveBtn">${isNew?'保存する':'更新を保存'}</button>
+        ${!isNew?'<button class="btn btn-danger btn-sm" id="kyDelBtn">削除</button>':''}
+      </div>`;
+
+    const hc=mainArea.querySelector('#hazardsCont');
+    (rec.hazards&&rec.hazards.length?rec.hazards:[{hazard:'',measure:''}]).forEach((h,i)=>hc.insertAdjacentHTML('beforeend',kyHazardHtml(h,i)));
+    mainArea.querySelector('#addHazBtn').onclick=()=>{const n=hc.querySelectorAll('.hazard-row').length;hc.insertAdjacentHTML('beforeend',kyHazardHtml(null,n));renumber(hc,'.hazard-row');};
+    hc.addEventListener('click',e=>{const b=e.target.closest('.row-remove');if(!b)return;if(hc.querySelectorAll('.hazard-row').length<=1){showToast('最低1項目は必要です');return;}b.closest('.hazard-row').remove();renumber(hc,'.hazard-row');});
+
+    const wc=mainArea.querySelector('#workersCont');
+    (rec.workers&&rec.workers.length?rec.workers:[{name:''}]).forEach((w,i)=>wc.insertAdjacentHTML('beforeend',kyWorkerHtml(w,i)));
+    updateWorkerHint();
+    mainArea.querySelector('#addWkBtn').onclick=()=>{const n=wc.querySelectorAll('.worker-row').length;wc.insertAdjacentHTML('beforeend',kyWorkerHtml(null,n));renumber(wc,'.worker-row');updateWorkerHint();};
+    wc.addEventListener('click',e=>{const b=e.target.closest('.row-remove');if(!b)return;if(wc.querySelectorAll('.worker-row').length<=1){showToast('最低1行は必要です');return;}b.closest('.worker-row').remove();renumber(wc,'.worker-row');updateWorkerHint();});
+    wc.addEventListener('input',e=>{if(e.target.classList.contains('worker-name'))updateWorkerHint();});
+
+    const rt=mainArea.querySelector('#resultToggle');
+    rt.querySelectorAll('.result-btn').forEach(btn=>{btn.onclick=()=>{const cur=rt.dataset.value===btn.dataset.value?'':btn.dataset.value;rt.dataset.value=cur;rt.querySelectorAll('.result-btn').forEach(b=>b.classList.toggle('active',b.dataset.value===cur));};});
+
+    const goBack=()=>{state.ky.view='list';tabBarWrap.style.display='block';renderMainTopbar(currentSite());renderTabBar();renderKYList();};
+    tbInner.querySelector('#kyBack').onclick=goBack;
+    const pp=tbInner.querySelector('#kyPrint');if(pp)pp.onclick=()=>window.print();
+    mainArea.querySelector('#kySaveBtn').onclick=()=>saveKYRecord(rec.id,isNew);
+    const db=mainArea.querySelector('#kyDelBtn');
+    if(db)db.onclick=()=>showConfirm('この記録を削除します。元に戻せません。',()=>{lsDel('record:'+rec.id);state.ky.records=state.ky.records.filter(r=>r.id!==rec.id);showToast('削除しました');goBack();});
+  }
+
+  function collectKYData(){
+    const g=id=>mainArea.querySelector('#'+id);
+    const data={
+      date:g('f_date').value||todayStr(),startTime:g('f_st').value||'',endTime:g('f_et').value||'',
+      projectName:g('f_pName').value.trim(),companyName:g('f_co').value.trim(),
+      foreman:g('f_fo').value.trim(),personInChargeSeal:g('f_pic').value.trim(),
+      enteredBy:g('f_by').value.trim(),workContent:g('f_wc').value.trim(),
+      notes:g('f_notes').value.trim(),result:mainArea.querySelector('#resultToggle').dataset.value||'',
+    };
+    data.hazards=[...mainArea.querySelectorAll('.hazard-row')].map(r=>({hazard:r.querySelector('.hazard-input').value.trim(),measure:r.querySelector('.measure-input').value.trim()}));
+    data.workers=[...mainArea.querySelectorAll('.worker-row')].map(r=>({name:r.querySelector('.worker-name').value.trim()}));
+    return data;
+  }
+
+  async function saveKYRecord(existingId,isNew){
+    const btn=mainArea.querySelector('#kySaveBtn');
+    btn.disabled=true;btn.textContent='保存中…';
+    const fd=collectKYData();
+    const now=new Date().toISOString();
+    let record;
+    if(isNew){record=Object.assign(blankKYRecord(),fd,{id:uid('ky'),siteId:state.config.currentSiteId,createdAt:now,updatedAt:now});}
+    else{const old=state.ky.records.find(r=>r.id===existingId)||{};record=Object.assign({},old,fd,{id:existingId,updatedAt:now});}
+
+    lsSet('record:'+record.id,JSON.stringify(record));
+    if(fd.companyName!==state.ky.shared.companyName){state.ky.shared.companyName=fd.companyName;lsSet('ky:shared',JSON.stringify(state.ky.shared));}
+    if(fd.enteredBy&&fd.enteredBy!==state.ky.personal.displayName){state.ky.personal.displayName=fd.enteredBy;lsSet('ky:personal',JSON.stringify(state.ky.personal));}
+    const idx=state.ky.records.findIndex(r=>r.id===record.id);
+    if(idx>=0)state.ky.records[idx]=record;else state.ky.records.push(record);
+    sortKY();
+
+    const site=currentSite();
+    if(site?.kyWebhook){
+      try{
+        const workerNames=(record.workers||[]).map(w=>w.name).filter(Boolean).join('、');
+        const res=await fetch(site.kyWebhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{workerNames}))});
+        const txt=await res.text();console.log('KY GAS:',txt);
+      }catch(err){console.error('KY GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
+    }
+    showToast('保存しました');
+    state.ky.view='list';tabBarWrap.style.display='block';
+    renderMainTopbar(currentSite());renderTabBar();renderKYList();
+  }
+
+  /* ============================================================
+     新規入場者 MODULE
+  ============================================================ */
+  function blankShinki(){
+    return {id:null,siteId:state.config.currentSiteId,date:todayStr(),furigana:'',name:'',birthdate:'',
+      company:'',employerCompany:'',siteManager:'',foreman:'',address:'',addressTel:'',
+      emergencyAddress:'',emergencyTel:'',emergencyContact:'',experience:'',bloodPressure:'',
+      bloodType:'',visionR:'',visionL:'',healthIssue:'',healthDetail:'',hasBelt:'',hadEducation:'',
+      qualifications:[],createdAt:null,updatedAt:null};
+  }
+  function sortShinki(){state.shinki.records.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));}
+
+  function renderShinkiList(){
+    const site=currentSite();
+    tbInner.innerHTML=`<div class="stamp-mark" style="font-size:10px;">新規</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="skNewBtn">＋ 新規</button>`;
+    mainArea.innerHTML=`<div class="toolbar"><input type="text" class="search-input" id="skSearch" placeholder="氏名・会社名で検索" value="${esc(state.shinki.filter.q)}"><button class="clear-btn" id="skClear">クリア</button></div><div class="card-list" id="skCards"></div>`;
+    tbInner.querySelector('#skNewBtn').onclick=()=>openShinkiForm(null);
+    const si=mainArea.querySelector('#skSearch');
+    si.addEventListener('input',()=>{state.shinki.filter.q=si.value;renderShinkiCards();});
+    mainArea.querySelector('#skClear').onclick=()=>{state.shinki.filter.q='';si.value='';renderShinkiCards();};
+    renderShinkiCards();
+  }
+
+  function renderShinkiCards(){
+    const siteId=state.config.currentSiteId;
+    const c=mainArea.querySelector('#skCards');
+    const all=state.shinki.records.filter(r=>!r.siteId||r.siteId===siteId);
+    const q=state.shinki.filter.q.toLowerCase();
+    const filtered=q?all.filter(r=>[r.name,r.furigana,r.company].join(' ').toLowerCase().includes(q)):all;
+    if(filtered.length===0){c.innerHTML=`<div class="empty-state"><div class="big">👷</div>${all.length===0?'まだ新規入場者の記録がありません。':'条件に合う記録が見つかりません。'}</div>`;return;}
+    c.innerHTML=filtered.map(r=>`<div class="record-card shinki-card" data-id="${esc(r.id)}">
+      <div class="stamp pending" style="font-size:9px;">受入</div>
+      <div class="record-date">${fmtDate(r.date)}</div>
+      <div class="record-name">${esc(r.name)||'（氏名未入力）'}</div>
+      <div class="record-meta">${r.furigana?esc(r.furigana)+'　':''}${esc(r.company||'会社名未入力')}</div>
+      <div class="record-footer"><span>${r.qualifications&&r.qualifications.length?'資格 '+r.qualifications.length+'件':''}</span><span>${r.foreman?'職長: '+esc(r.foreman):''}</span></div>
+    </div>`).join('');
+    c.querySelectorAll('.record-card').forEach(card=>card.addEventListener('click',()=>openShinkiForm(card.dataset.id)));
+  }
+
+  function openShinkiForm(id){
+    const rec=id?JSON.parse(JSON.stringify(state.shinki.records.find(r=>r.id===id)||blankShinki())):blankShinki();
+    state.shinki._rec=rec;state.shinki._isNew=!id;state.shinki.view='form';
+    renderShinkiForm(rec,!id);
+  }
+
+  function ynHtml(id,val){return `<div class="yn-toggle" id="${id}" data-value="${esc(val)}"><button type="button" class="yn-btn ${val==='yes'?'active':''}" data-value="yes">はい</button><button type="button" class="yn-btn ${val==='no'?'active':''}" data-value="no">いいえ</button></div>`;}
+  function wireYn(){mainArea.querySelectorAll('.yn-toggle').forEach(t=>{t.querySelectorAll('.yn-btn').forEach(b=>{b.onclick=()=>{const cur=t.dataset.value===b.dataset.value?'':b.dataset.value;t.dataset.value=cur;t.querySelectorAll('.yn-btn').forEach(x=>x.classList.toggle('active',x.dataset.value===cur));};});});}
+
+  function renderShinkiForm(rec,isNew){
+    tbInner.innerHTML=`<button class="back-btn" id="skBack">‹</button><div class="topbar-title"><h1>${isNew?'新規入場者 登録':'新規入場者 編集'}</h1></div>`;
+    tabBarWrap.style.display='none';
+    const qc=QUALIFICATIONS.map((q,i)=>`<div class="qual-item"><input type="checkbox" id="q${i}" data-qi="${i}" ${(rec.qualifications||[]).includes(q)?'checked':''}><label for="q${i}">${esc(q)}</label></div>`).join('');
+    mainArea.innerHTML=`
+      <div class="form-title">${fmtDate(rec.date)}</div>
+      <div class="section"><div class="section-head">基本情報</div><div class="section-body">
+        <div class="field"><label>記入日</label><input type="date" id="sk_d" value="${esc(rec.date)}"></div>
+        <div class="row2"><div class="field"><label>ふりがな</label><input type="text" id="sk_fr" value="${esc(rec.furigana)}" placeholder="やまだ たろう"></div><div class="field"><label>氏名</label><input type="text" id="sk_nm" value="${esc(rec.name)}" placeholder="山田 太郎"></div></div>
+        <div class="field"><label>生年月日</label><input type="date" id="sk_bd" value="${esc(rec.birthdate)}"></div>
+      </div></div>
+      <div class="section"><div class="section-head">所属</div><div class="section-body">
+        <div class="field"><label>会社名（一次下請）</label><input type="text" id="sk_co" value="${esc(rec.company)}"></div>
+        <div class="field"><label>雇用主の会社名（二次以下の場合）</label><input type="text" id="sk_ec" value="${esc(rec.employerCompany)}"></div>
+        <div class="row2"><div class="field"><label>現場責任者名</label><input type="text" id="sk_sm" value="${esc(rec.siteManager)}"></div><div class="field"><label>職長氏名</label><input type="text" id="sk_fo" value="${esc(rec.foreman)}"></div></div>
+      </div></div>
+      <div class="section"><div class="section-head">連絡先</div><div class="section-body">
+        <div class="row2"><div class="field"><label>現住所</label><input type="text" id="sk_ad" value="${esc(rec.address)}"></div><div class="field"><label>TEL</label><input type="tel" id="sk_at" value="${esc(rec.addressTel)}"></div></div>
+        <div class="row2"><div class="field"><label>緊急連絡先住所</label><input type="text" id="sk_ea" value="${esc(rec.emergencyAddress)}"></div><div class="field"><label>TEL</label><input type="tel" id="sk_et" value="${esc(rec.emergencyTel)}"></div></div>
+        <div class="field"><label>緊急連絡者の氏名</label><input type="text" id="sk_en" value="${esc(rec.emergencyContact)}"></div>
+      </div></div>
+      <div class="section"><div class="section-head">健康・身体情報</div><div class="section-body">
+        <div class="row3"><div class="field"><label>経験年数</label><input type="text" id="sk_ex" value="${esc(rec.experience)}" placeholder="5年"></div><div class="field"><label>血圧</label><input type="text" id="sk_bp" value="${esc(rec.bloodPressure)}" placeholder="120/80"></div><div class="field"><label>血液型</label><input type="text" id="sk_bt" value="${esc(rec.bloodType)}" placeholder="A型"></div></div>
+        <div class="row2"><div class="field"><label>視力（右）</label><input type="text" id="sk_vr" value="${esc(rec.visionR)}" placeholder="1.0"></div><div class="field"><label>視力（左）</label><input type="text" id="sk_vl" value="${esc(rec.visionL)}" placeholder="0.8"></div></div>
+        <div class="field"><label>現在、病気・けが等で体調が悪いところはありますか？</label>${ynHtml('ht_h',rec.healthIssue)}</div>
+        <div class="field" style="margin-top:10px;"><label>ある場合は詳細</label><input type="text" id="sk_hd" value="${esc(rec.healthDetail)}" placeholder="詳細を記入"></div>
+      </div></div>
+      <div class="section"><div class="section-head">装備・教育</div><div class="section-body">
+        <div class="field"><label>安全帯を持っていますか？</label>${ynHtml('ht_b',rec.hasBelt)}</div>
+        <div class="field" style="margin-top:14px;"><label>入社時、会社からの安全教育を受けましたか？</label>${ynHtml('ht_e',rec.hadEducation)}</div>
+      </div></div>
+      <div class="section"><div class="section-head">資格調査</div><div class="section-body"><div class="qual-grid">${qc}</div></div></div>
+      <div class="save-bar">
+        <button class="btn btn-primary btn-block" id="skSaveBtn">${isNew?'保存する':'更新を保存'}</button>
+        ${!isNew?'<button class="btn btn-danger btn-sm" id="skDelBtn">削除</button>':''}
+      </div>`;
+    wireYn();
+    const goBack=()=>{state.shinki.view='list';tabBarWrap.style.display='block';renderMainTopbar(currentSite());renderTabBar();renderShinkiList();};
+    tbInner.querySelector('#skBack').onclick=goBack;
+    mainArea.querySelector('#skSaveBtn').onclick=()=>saveShinkiRecord(rec.id,isNew);
+    const db=mainArea.querySelector('#skDelBtn');
+    if(db)db.onclick=()=>showConfirm('この記録を削除します。',()=>{lsDel('shinki:'+rec.id);state.shinki.records=state.shinki.records.filter(r=>r.id!==rec.id);showToast('削除しました');goBack();});
+  }
+
+  function collectShinkiData(){
+    const g=id=>mainArea.querySelector('#'+id);
+    const quals=[];
+    mainArea.querySelectorAll('.qual-item input:checked').forEach(cb=>quals.push(QUALIFICATIONS[parseInt(cb.dataset.qi)]));
+    return {date:g('sk_d').value||todayStr(),furigana:g('sk_fr').value.trim(),name:g('sk_nm').value.trim(),birthdate:g('sk_bd').value,
+      company:g('sk_co').value.trim(),employerCompany:g('sk_ec').value.trim(),siteManager:g('sk_sm').value.trim(),foreman:g('sk_fo').value.trim(),
+      address:g('sk_ad').value.trim(),addressTel:g('sk_at').value.trim(),emergencyAddress:g('sk_ea').value.trim(),emergencyTel:g('sk_et').value.trim(),emergencyContact:g('sk_en').value.trim(),
+      experience:g('sk_ex').value.trim(),bloodPressure:g('sk_bp').value.trim(),bloodType:g('sk_bt').value.trim(),visionR:g('sk_vr').value.trim(),visionL:g('sk_vl').value.trim(),
+      healthIssue:mainArea.querySelector('#ht_h').dataset.value,healthDetail:g('sk_hd').value.trim(),
+      hasBelt:mainArea.querySelector('#ht_b').dataset.value,hadEducation:mainArea.querySelector('#ht_e').dataset.value,qualifications:quals};
+  }
+
+  async function saveShinkiRecord(existingId,isNew){
+    const btn=mainArea.querySelector('#skSaveBtn');btn.disabled=true;btn.textContent='保存中…';
+    const fd=collectShinkiData();const now=new Date().toISOString();
+    let record;
+    if(isNew)record=Object.assign(blankShinki(),fd,{id:uid('sk'),siteId:state.config.currentSiteId,createdAt:now,updatedAt:now});
+    else{const old=state.shinki.records.find(r=>r.id===existingId)||{};record=Object.assign({},old,fd,{id:existingId,updatedAt:now});}
+    lsSet('shinki:'+record.id,JSON.stringify(record));
+    const idx=state.shinki.records.findIndex(r=>r.id===record.id);
+    if(idx>=0)state.shinki.records[idx]=record;else state.shinki.records.push(record);sortShinki();
+    const site=currentSite();
+    if(site?.shinkiWebhook){
+      try{
+        const res=await fetch(site.shinkiWebhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{qualificationsText:(record.qualifications||[]).join('、')}))});
+        console.log('Shinki GAS:',await res.text());
+      }catch(err){console.error('Shinki GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
+    }
+    showToast('保存しました');
+    state.shinki.view='list';tabBarWrap.style.display='block';renderMainTopbar(currentSite());renderTabBar();renderShinkiList();
+  }
+
+  /* ============================================================
+     写真報告 MODULE
+  ============================================================ */
+  function renderPhotoTab(){
+    const site=currentSite();
+    tbInner.innerHTML=`<div class="stamp-mark" style="font-size:16px;">📸</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="gear-btn" id="phGear">⚙</button>`;
+    tbInner.querySelector('#phGear').onclick=()=>openSettings();
+    const today=todayStr();
+    mainArea.innerHTML=`
+      <div class="section" style="margin-top:16px;">
+        <div class="section-head">写真報告</div>
+        <div class="section-body">
+          <div class="photo-preview" id="photoPrev"><div class="ph-hint"><span class="ph-icon">📷</span>タップして写真を選択</div></div>
+          <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none;">
+          <div class="field"><label>日付</label><input type="date" id="ph_d" value="${today}"></div>
+          <div class="row2">
+            <div class="field"><label>会社名</label><input type="text" id="ph_co" value="${esc(state.ky.shared.companyName)}" placeholder="会社名"></div>
+            <div class="field"><label>氏名</label><input type="text" id="ph_nm" value="${esc(state.ky.personal.displayName)}" placeholder="氏名"></div>
+          </div>
+          <div class="field"><label>コメント</label><textarea id="ph_cm" rows="3" placeholder="報告内容・状況など"></textarea></div>
+          ${!site?.photoWebhook?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定から写真用Webhook URLを入力してください</div>':''}
+          <button class="btn btn-primary btn-block" id="phSubmit">送信する</button>
+        </div>
+      </div>`;
+
+    const prev=mainArea.querySelector('#photoPrev');
+    const input=mainArea.querySelector('#photoInput');
+    let selectedFile=null;
+    prev.onclick=()=>input.click();
+    input.onchange=()=>{
+      const file=input.files[0];if(!file)return;
+      selectedFile=file;
+      const url=URL.createObjectURL(file);
+      prev.innerHTML=`<img src="${url}" alt="preview">`;
     };
 
-    state.view='form';
+    mainArea.querySelector('#phSubmit').onclick=async()=>{
+      const g=id=>mainArea.querySelector('#'+id);
+      if(!selectedFile){showToast('写真を選択してください');return;}
+      if(!site?.photoWebhook){showToast('設定に写真用Webhook URLを入力してください');return;}
+      const btn=mainArea.querySelector('#phSubmit');
+      btn.disabled=true;btn.textContent='送信中…';
+      try{
+        const {base64,mimeType,fileName}=await resizePhoto(selectedFile);
+        const nm=g('ph_nm').value.trim();
+        if(nm&&nm!==state.ky.personal.displayName){state.ky.personal.displayName=nm;lsSet('ky:personal',JSON.stringify(state.ky.personal));}
+        const payload={date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,comment:g('ph_cm').value.trim(),siteName:site.name,email:site.photoEmail||'',photoBase64:base64,mimeType,fileName};
+        const res=await fetch(site.photoWebhook,{method:'POST',body:JSON.stringify(payload)});
+        const json=await res.json();
+        if(json.success){
+          showToast('送信しました');
+          prev.innerHTML='<div class="ph-hint"><span class="ph-icon">📷</span>タップして写真を選択</div>';
+          g('ph_cm').value='';selectedFile=null;
+        }else showToast('送信エラー: '+(json.error||'不明'));
+      }catch(err){console.error(err);showToast('送信に失敗しました');}
+      btn.disabled=false;btn.textContent='送信する';
+    };
   }
-function collectFormData(){
-  const get = id => mainArea.querySelector('#'+id);
 
-  const data = {
-    date: get('f_date').value || todayStr(),
-    startTime: get('f_startTime')?.value || '',
-    endTime: get('f_endTime')?.value || '',
-    projectName: get('f_projectName').value.trim(),
-    companyName: get('f_companyName').value.trim(),
-    foreman: get('f_foreman').value.trim(),
-    supervisorSeal: get('f_supervisorSeal').value.trim(),
-    contractorSeal: get('f_contractorSeal').value.trim(),
-    personInChargeSeal: get('f_personInChargeSeal').value.trim(),
-    enteredBy: get('f_enteredBy').value.trim(),
-    workContent: get('f_workContent').value.trim(),
-    notes: get('f_notes').value.trim(),
-    result: mainArea.querySelector('#resultToggle').dataset.value || '',
-  };
-
-  data.hazards = [...mainArea.querySelectorAll('.hazard-row')].map(row => ({
-    hazard: row.querySelector('.hazard-input').value.trim(),
-    measure: row.querySelector('.measure-input').value.trim(),
-  }));
-
-  data.workers = [...mainArea.querySelectorAll('.worker-row')].map(row => ({
-    name: row.querySelector('.worker-name').value.trim(),
-  }));
-
-  return data;
-}
-
-  async function saveCurrentForm(existingId, isNew){
-    const saveBtn = mainArea.querySelector('#saveBtn');
-    saveBtn.disabled = true;
-    saveBtn.textContent = '保存中…';
-
-    const formData = collectFormData();
-    const now = new Date().toISOString();
-    let record;
-    if(isNew){
-      record = Object.assign(blankRecord(), formData, { id: uid(), createdAt: now, updatedAt: now });
-    }else{
-      const old = state.records.find(r=>r.id===existingId) || {};
-      record = Object.assign({}, old, formData, { id: existingId, updatedAt: now });
+  /* ============================================================
+     概要 MODULE
+  ============================================================ */
+  function renderOverview(site){
+    tbInner.innerHTML=`<div class="stamp-mark" style="font-size:11px;">概要</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="gear-btn" id="ovG">⚙</button>`;
+    tbInner.querySelector('#ovG').onclick=()=>openSettings();
+    if(!site?.overview?.projectName){
+      mainArea.innerHTML=`<div class="empty-state" style="margin-top:30px;"><div class="big">📄</div>設定から概要情報を入力してください。<br><br><button class="btn btn-primary" id="ovS">設定を開く</button></div>`;
+      mainArea.querySelector('#ovS').onclick=()=>openSettings();return;
     }
-
-    const ok = await sSet('record:'+record.id, JSON.stringify(record), true);
-    if(!ok){
-      saveBtn.disabled=false; saveBtn.textContent = isNew?'保存する':'更新を保存';
-      showToast('保存に失敗しました。通信状態を確認して再度お試しください。');
-      return;
-    }
-
-    // persist convenient defaults
-const newShared = {
-  companyName: formData.companyName
-};
-
-if(newShared.companyName !== state.shared.companyName){
-  state.shared.companyName = newShared.companyName;
-
-  await sSet(
-    'settings:shared',
-    JSON.stringify(state.shared),
-    true
-  );
-}
-    if(formData.enteredBy && formData.enteredBy !== state.personal.displayName){
-      state.personal.displayName = formData.enteredBy;
-      sSet('settings:personal', JSON.stringify(state.personal), false);
-    }
-
-    const idx = state.records.findIndex(r=>r.id===record.id);
-    if(idx>=0) state.records[idx] = record; else state.records.push(record);
-    state.records.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
-try {
-  const res = await fetch("https://script.google.com/macros/s/AKfycbxlpoIO6QuIDaB4JPjbwaXS-Ri9lvCTiEBU5poEItssrLGf-rc2i2PsxJ5LVJxmrymUXA/exec", {
-method: "POST",
-  body: JSON.stringify(record)
-});
-
-const text = await res.text();
-console.log(text);
-  console.log("GAS response:", text);
-} catch (err) {
-  console.error("GAS送信エラー:", err);
-  showToast("クラウド保存に失敗（GAS接続）");
-}
-    showToast('保存しました');
-    state.view='list';
-    renderList();
+    const ov=site.overview;
+    const period=[ov.periodStart,ov.periodEnd].filter(Boolean).join(' 〜 ')||'—';
+    const row=(l,v)=>v?`<div class="ov-row"><div class="ov-label">${esc(l)}</div><div class="ov-value">${v}</div></div>`:'';
+    mainArea.innerHTML=`
+      <div class="section" style="margin-top:16px;"><div class="section-head">工事概要</div><div class="section-body">
+        ${row('工事名',esc(ov.projectName))}${row('発注者',esc(ov.client))}${row('設計監理',esc(ov.designer))}${row('請負者',esc(ov.contractor))}${row('工期',esc(period))}${row('場所',esc(ov.location))}${row('構造・規模',esc(ov.structure))}${ov.area?row('延べ面積',esc(ov.area)):''}
+      </div></div>
+      ${ov.cycleText?`<div class="section"><div class="section-head">施工サイクル</div><div class="section-body"><div class="ov-pre">${esc(ov.cycleText)}</div></div></div>`:''}
+      ${ov.safetyText?`<div class="section"><div class="section-head">作業所安全遵守事項</div><div class="section-body"><div class="ov-pre">${esc(ov.safetyText)}</div></div></div>`:''}
+      ${(ov.contactName||ov.contactPhone)?`<div class="section"><div class="section-head">担当者連絡先</div><div class="section-body">${row('氏名',esc(ov.contactName))}${ov.contactPhone?row('TEL',`<a href="tel:${esc(ov.contactPhone)}">${esc(ov.contactPhone)}</a>`):''}</div></div>`:''}`;
   }
 
   init();
