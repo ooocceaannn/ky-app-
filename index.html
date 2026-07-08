@@ -397,7 +397,7 @@
 
   /* ---- SETTINGS ---- */
   function blankSite(){
-    return {id:uid('site'),name:'',kyWebhook:'',shinkiWebhook:'',photoWebhook:'',photoEmail:'',
+    return {id:uid('site'),name:'',webhook:'',photoEmail:'',
       overview:{projectName:'',client:'',designer:'',contractor:'',periodStart:'',periodEnd:'',location:'',structure:'',area:'',cycleText:'',safetyText:'',contactName:'',contactPhone:''}};
   }
 
@@ -416,7 +416,7 @@
         ${sites.length===0?'<div class="empty-state" style="padding:30px 0;"><div class="big">🏗</div>現場が登録されていません</div>':
           sites.map(s=>`<div class="site-card ${s.id===state.config.currentSiteId?'active-site':''}">
             <div class="site-card-name">${esc(s.name)||'（名前未設定）'}${s.id===state.config.currentSiteId?'<span class="site-card-badge">使用中</span>':''}</div>
-            <div style="font-size:12px;color:var(--ink-soft);">KY: ${s.kyWebhook?'設定済':'未設定'} ／ 新規: ${s.shinkiWebhook?'設定済':'未設定'} ／ 写真: ${s.photoWebhook?'設定済':'未設定'}</div>
+            <div style="font-size:12px;color:var(--ink-soft);">Webhook: ${s.webhook?'設定済':'未設定'} ／ メール: ${s.photoEmail?'設定済':'未設定'}</div>
             <div class="site-card-actions">
               ${s.id!==state.config.currentSiteId?`<button class="btn btn-navy btn-sm" data-act="${s.id}">この現場に切替</button>`:''}
               <button class="btn btn-ghost btn-sm" data-edit="${s.id}">編集</button>
@@ -452,9 +452,7 @@
         <div class="stitle">現場情報</div>
         <div class="sfield"><label>現場名 *</label><input type="text" id="se_name" value="${esc(site.name)}" placeholder="○○工事現場"></div>
         <div class="stitle">Webhook URL（GAS）</div>
-        <div class="sfield"><label>KY活動 送信先</label><input type="text" id="se_ky" value="${esc(site.kyWebhook)}" placeholder="https://script.google.com/..."></div>
-        <div class="sfield"><label>新規入場者 送信先</label><input type="text" id="se_sk" value="${esc(site.shinkiWebhook)}" placeholder="https://script.google.com/..."></div>
-        <div class="sfield"><label>写真報告 送信先</label><input type="text" id="se_ph" value="${esc(site.photoWebhook)}" placeholder="https://script.google.com/..."></div>
+        <div class="sfield"><label>Webhook URL（KY・新規・写真 共通）</label><input type="text" id="se_wh" value="${esc(site.webhook)}" placeholder="https://script.google.com/macros/s/.../exec"></div>
         <div class="sfield"><label>写真報告 送信先メールアドレス</label><input type="text" id="se_email" value="${esc(site.photoEmail)}" placeholder="example@gmail.com"></div>
         <div class="stitle">工事概要</div>
         <div class="sfield"><label>工事名</label><input type="text" id="se_pn" value="${esc(o.projectName)}"></div>
@@ -486,7 +484,7 @@
     ov.querySelector('#se_save').onclick=()=>{
       const g=id=>ov.querySelector('#'+id).value.trim();
       const name=g('se_name');if(!name){showToast('現場名を入力してください');return;}
-      site.name=name;site.kyWebhook=g('se_ky');site.shinkiWebhook=g('se_sk');site.photoWebhook=g('se_ph');site.photoEmail=g('se_email');
+      site.name=name;site.webhook=g('se_wh');site.photoEmail=g('se_email');
       site.overview={projectName:g('se_pn'),client:g('se_cl'),designer:g('se_ds'),contractor:g('se_ct'),
         periodStart:g('se_ps'),periodEnd:g('se_pe'),location:g('se_loc'),structure:g('se_st'),area:g('se_ar'),
         cycleText:ov.querySelector('#se_cy').value,safetyText:ov.querySelector('#se_sf').value,contactName:g('se_cn'),contactPhone:g('se_cp')};
@@ -521,10 +519,10 @@
   /* KY shared fetch */
   async function fetchSharedKY(){
     const site=currentSite();
-    if(!site?.kyWebhook)return null;
+    if(!site?.webhook)return null;
     try{
       state.ky.fetchStatus='loading';
-      const res=await fetch(site.kyWebhook);
+      const res=await fetch(site.webhook);
       if(!res.ok)throw new Error('HTTP '+res.status);
       const json=await res.json();
       if(json.success&&Array.isArray(json.records)){
@@ -543,7 +541,7 @@
   /* KY list (async) */
   async function renderKYList(){
     const site=currentSite();
-    const isShared=!!(site?.kyWebhook);
+    const isShared=!!(site?.webhook);
     tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規</button>`;
     mainArea.innerHTML=`
       <div class="toolbar">
@@ -593,7 +591,7 @@
     const container=mainArea.querySelector('#kyAccordion');
     if(!container)return;
     const site=currentSite();
-    const isShared=!!(site?.kyWebhook);
+    const isShared=!!(site?.webhook);
     const today=todayStr();
 
     let records=isShared?state.ky.sharedRecords:state.ky.records.filter(r=>!r.siteId||r.siteId===state.config.currentSiteId);
@@ -773,10 +771,10 @@
     sortKY();
 
     const site=currentSite();
-    if(site?.kyWebhook){
+    if(site?.webhook){
       try{
         const workerNames=(record.workers||[]).map(w=>w.name).filter(Boolean).join('、');
-        const res=await fetch(site.kyWebhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{workerNames}))});
+        const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{workerNames,type:'ky'}))});
         const txt=await res.text();console.log('KY GAS:',txt);
       }catch(err){console.error('KY GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
     }
@@ -900,9 +898,9 @@
     const idx=state.shinki.records.findIndex(r=>r.id===record.id);
     if(idx>=0)state.shinki.records[idx]=record;else state.shinki.records.push(record);sortShinki();
     const site=currentSite();
-    if(site?.shinkiWebhook){
+    if(site?.webhook){
       try{
-        const res=await fetch(site.shinkiWebhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{qualificationsText:(record.qualifications||[]).join('、')}))});
+        const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{type:'shinki',qualificationsText:(record.qualifications||[]).join('、')}))});
         console.log('Shinki GAS:',await res.text());
       }catch(err){console.error('Shinki GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
     }
@@ -930,7 +928,7 @@
             <div class="field"><label>氏名</label><input type="text" id="ph_nm" value="${esc(state.ky.personal.displayName)}" placeholder="氏名"></div>
           </div>
           <div class="field"><label>コメント</label><textarea id="ph_cm" rows="3" placeholder="報告内容・状況など"></textarea></div>
-          ${!site?.photoWebhook?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定から写真用Webhook URLを入力してください</div>':''}
+          ${!site?.webhook?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定からWebhook URLを入力してください</div>':''}
           <button class="btn btn-primary btn-block" id="phSubmit">送信する</button>
         </div>
       </div>`;
@@ -949,15 +947,15 @@
     mainArea.querySelector('#phSubmit').onclick=async()=>{
       const g=id=>mainArea.querySelector('#'+id);
       if(!selectedFile){showToast('写真を選択してください');return;}
-      if(!site?.photoWebhook){showToast('設定に写真用Webhook URLを入力してください');return;}
+      if(!site?.webhook){showToast('設定にWebhook URLを入力してください');return;}
       const btn=mainArea.querySelector('#phSubmit');
       btn.disabled=true;btn.textContent='送信中…';
       try{
         const {base64,mimeType,fileName}=await resizePhoto(selectedFile);
         const nm=g('ph_nm').value.trim();
         if(nm&&nm!==state.ky.personal.displayName){state.ky.personal.displayName=nm;lsSet('ky:personal',JSON.stringify(state.ky.personal));}
-        const payload={date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,comment:g('ph_cm').value.trim(),siteName:site.name,email:site.photoEmail||'',photoBase64:base64,mimeType,fileName};
-        const res=await fetch(site.photoWebhook,{method:'POST',body:JSON.stringify(payload)});
+        const payload={type:'photo',date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,comment:g('ph_cm').value.trim(),siteName:site.name,email:site.photoEmail||'',photoBase64:base64,mimeType,fileName};
+        const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(payload)});
         const json=await res.json();
         if(json.success){
           showToast('送信しました');
