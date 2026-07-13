@@ -231,9 +231,6 @@
   const tabBar=document.getElementById('tabBar');
   const mainArea=document.getElementById('mainArea');
 
-  /* ---- DEFAULT WEBHOOK (デプロイ時にGASのURLを入力) ---- */
-  const DEFAULT_WEBHOOK = ''; // ← ここにGASのURLを貼る
-
   /* ---- CONSTANTS ---- */
   const TABS=[
     {id:'ky',   label:'KY活動'},
@@ -270,7 +267,7 @@
       shared:{companyName:''},personal:{displayName:''},
     },
     shinki:{view:'list',records:[],currentId:null,filter:{q:''}},
-    overviews:{}, // { [siteId]: overviewData } — GASから取得、localStorageには保存しない
+    overviews:{}, // { [siteId]: {...} } — GASのみが正、localStorageには保存しない
   };
 
   /* ---- STORAGE ---- */
@@ -283,10 +280,19 @@
   function uid(p){return (p||'r')+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);}
   function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   function fmtDate(iso){
-    if(!iso)return '日付未設定';
-    const[y,m,d]=iso.split('-');
-    const wd=['日','月','火','水','木','金','土'][new Date(iso+'T00:00:00').getDay()];
-    return y+'年'+m+'月'+d+'日（'+wd+'）';
+    if(!iso) return '日付未設定';
+    // yyyy-MM-dd以外（GASのDate型など）を正規化
+    let s = String(iso).trim();
+    if(!s.match(/^\d{4}-\d{2}-\d{2}/)){
+      try{
+        const d=new Date(s);
+        if(isNaN(d.getTime())) return s;
+        s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      }catch(e){ return s; }
+    }
+    const[y,m,d]=s.split('-');
+    const wd=['日','月','火','水','木','金','土'][new Date(s+'T00:00:00').getDay()];
+    return y+'年'+Number(m)+'月'+Number(d)+'日（'+wd+'）';
   }
   function esc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function renumber(c,s){c.querySelectorAll(s).forEach((r,i)=>{const n=r.querySelector('.row-num');if(n)n.textContent=i+1;});}
@@ -335,41 +341,58 @@
     if(cfgRaw){try{state.config=JSON.parse(cfgRaw);}catch(e){}}
     if(!state.config.sites)state.config.sites=[];
     if(!state.config.currentSiteId&&state.config.sites.length>0)state.config.currentSiteId=state.config.sites[0].id;
-
-    // migrate old settings
     if(state.config.sites.length===0){
       const oldShared=lsGet('settings:shared');
       if(oldShared){try{const s=JSON.parse(oldShared);if(s.projectName){migrateOld(s);return;}}catch(e){}}
     }
-
     const kyS=lsGet('ky:shared');if(kyS)try{state.ky.shared=JSON.parse(kyS);}catch(e){}
     const kyP=lsGet('ky:personal');if(kyP)try{state.ky.personal=JSON.parse(kyP);}catch(e){}
     state.ky.records=lsKeys('record:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
     sortKY();
     state.shinki.records=lsKeys('shinki:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
     sortShinki();
-
-    await fetchOverviews();
+    // 現場概要をGASから取得（設定済みの全現場分）
+    await fetchAllOverviews();
     renderApp();
   }
 
-  async function fetchOverviews(){
-    const wh=currentWebhook();
-    if(!wh)return;
+  // 全現場の概要をGASから取得（webhookが設定されている現場のみ）
+  async function fetchAllOverviews(){
+    const webhooks=new Set(state.config.sites.map(s=>s.webhook).filter(Boolean));
+    for(const wh of webhooks){
+      await fetchOverviewsFromWebhook(wh);
+    }
+  }
+
+  // 指定webhookからconfigシートの概要を取得
+  async function fetchOverviewsFromWebhook(webhook){
+    if(!webhook) return;
     try{
-      const res=await fetch(wh+'?type=config');
+      const res=await fetch(webhook+'?type=config');
       const text=await res.text();
-      const json=JSON.parse(text);
-      if(json.success&&json.overviews) state.overviews=json.overviews;
+      let json;
+      try{json=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗',text.slice(0,200));return;}
+      if(json.success&&json.overviews){
+        // 取得した全現場の概要をstateにマージ
+        Object.assign(state.overviews, json.overviews);
+      }
     }catch(e){console.warn('概要取得失敗:',e);}
   }
 
-  async function saveOverviewToGAS(siteId,siteName,ov){
-    const wh=currentWebhook();
-    if(!wh)return;
+  // 現場概要をGASのconfigシートに保存（webhookを明示的に指定）
+  async function saveOverviewToGAS(siteId, siteName, ov, webhook){
+    if(!webhook){console.warn('saveOverviewToGAS: webhookが未設定');return false;}
     try{
-      await fetch(wh,{method:'POST',body:JSON.stringify({type:'config',siteId,siteName,...ov})});
-    }catch(e){console.warn('概要保存失敗:',e);}
+      const res=await fetch(webhook,{method:'POST',body:JSON.stringify({type:'config',siteId,siteName,...ov})});
+      const text=await res.text();
+      try{
+        const json=JSON.parse(text);
+        return json.success===true;
+      }catch(e){
+        console.warn('概要保存: JSONパース失敗',text.slice(0,200));
+        return false;
+      }
+    }catch(e){console.warn('概要保存失敗:',e);return false;}
   }
 
   function migrateOld(old){
@@ -383,7 +406,6 @@
 
   function saveConfig(){lsSet('app:config',JSON.stringify(state.config));}
   function currentSite(){return state.config.sites.find(s=>s.id===state.config.currentSiteId)||null;}
-  function currentWebhook(){return currentSite()?.webhook||DEFAULT_WEBHOOK||null;}
   function currentOverview(){return state.overviews[state.config.currentSiteId]||null;}
   function renderLoading(){tbInner.innerHTML=`<div class="stamp-mark">安</div><div class="site-name">読み込み中…</div>`;tabBarWrap.style.display='none';mainArea.innerHTML=`<div class="loading-state">読み込み中…</div>`;}
 
@@ -442,7 +464,7 @@
         ${sites.length===0?'<div class="empty-state" style="padding:30px 0;"><div class="big">🏗</div>現場が登録されていません</div>':
           sites.map(s=>`<div class="site-card ${s.id===state.config.currentSiteId?'active-site':''}">
             <div class="site-card-name">${esc(s.name)||'（名前未設定）'}${s.id===state.config.currentSiteId?'<span class="site-card-badge">使用中</span>':''}</div>
-            <div style="font-size:12px;color:var(--ink-soft);">Webhook: ${s.webhook?'設定済':'未設定（DEFAULT使用）'}</div>
+            <div style="font-size:12px;color:var(--ink-soft);">Webhook: ${s.webhook?'設定済':'未設定'}</div>
             <div class="site-card-actions">
               ${s.id!==state.config.currentSiteId?`<button class="btn btn-navy btn-sm" data-act="${s.id}">この現場に切替</button>`:''}
               <button class="btn btn-ghost btn-sm" data-edit="${s.id}">編集</button>
@@ -467,6 +489,7 @@
   }
 
   function renderSiteEdit(ov,site,isNew){
+    // 概要はstate.overviewsから取得（GASが正）、フォールバックはsite.overview（旧localStorage）
     const o=state.overviews[site.id]||site.overview||{};
     ov.innerHTML=`<div class="settings-drawer">
       <div class="settings-handle">
@@ -477,10 +500,11 @@
       <div class="settings-scroll" id="seScroll">
         <div class="stitle">現場情報</div>
         <div class="sfield"><label>現場名 *</label><input type="text" id="se_name" value="${esc(site.name)}" placeholder="○○工事現場"></div>
-        <div class="stitle">Webhook URL（GAS）※全機能共通</div>
-        <div class="sfield"><label>GAS Webhook URL</label><input type="text" id="se_wh" value="${esc(site.webhook||'')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
+        <div class="stitle">GAS Webhook URL（全機能共通）</div>
+        <div class="sfield" style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">KY・新規入場・写真・概要すべてに使用。各端末で同じURLを設定してください。</div>
+        <div class="sfield"><label>Webhook URL</label><input type="text" id="se_wh" value="${esc(site.webhook||'')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
         <div class="sfield"><label>写真報告 送信先メールアドレス</label><input type="text" id="se_email" value="${esc(site.photoEmail||'')}" placeholder="example@gmail.com"></div>
-        <div class="stitle">工事概要</div>
+        <div class="stitle">工事概要 ※保存するとスプレッドシートに反映・全端末で共有されます</div>
         <div class="sfield"><label>工事名</label><input type="text" id="se_pn" value="${esc(o.projectName||'')}"></div>
         <div class="sfield"><label>発注者</label><input type="text" id="se_cl" value="${esc(o.client||'')}"></div>
         <div class="sfield"><label>設計監理</label><input type="text" id="se_ds" value="${esc(o.designer||'')}"></div>
@@ -501,6 +525,7 @@
           <div class="sfield" style="margin:0;"><label>氏名</label><input type="text" id="se_cn" value="${esc(o.contactName||'')}"></div>
           <div class="sfield" style="margin:0;"><label>TEL</label><input type="text" id="se_cp" value="${esc(o.contactPhone||'')}"></div>
         </div>
+        <div id="se_msg" style="font-size:12px;color:var(--red);margin-bottom:8px;display:none;"></div>
         <div style="padding-bottom:20px;display:flex;gap:10px;">
           <button class="btn btn-primary btn-block" id="se_save">保存する</button>
         </div>
@@ -509,20 +534,46 @@
     ov.querySelector('#sEC').onclick=()=>ov.remove();
     ov.querySelector('#se_save').onclick=async()=>{
       const g=id=>ov.querySelector('#'+id).value.trim();
-      const name=g('se_name');if(!name){showToast('現場名を入力してください');return;}
+      const name=g('se_name');
+      if(!name){showToast('現場名を入力してください');return;}
+      const webhook=g('se_wh');
       const btn=ov.querySelector('#se_save');
-      btn.disabled=true;btn.textContent='保存中…';
-      site.name=name;site.webhook=g('se_wh');site.photoEmail=g('se_email');
-      delete site.overview; // localStorageから概要を削除
-      if(isNew){state.config.sites.push(site);if(!state.config.currentSiteId)state.config.currentSiteId=site.id;}
+      const msg=ov.querySelector('#se_msg');
+      btn.disabled=true; btn.textContent='保存中…'; msg.style.display='none';
+      // localStorageにはwebhookとメール住所のみ保存
+      site.name=name; site.webhook=webhook; site.photoEmail=g('se_email');
+      delete site.overview; // 旧localStorage概要を削除
+      if(isNew){
+        state.config.sites.push(site);
+        if(!state.config.currentSiteId) state.config.currentSiteId=site.id;
+      }
       saveConfig();
-      const ovData={projectName:g('se_pn'),client:g('se_cl'),designer:g('se_ds'),contractor:g('se_ct'),
-        periodStart:g('se_ps'),periodEnd:g('se_pe'),location:g('se_loc'),structure:g('se_st'),area:g('se_ar'),
-        cycleText:ov.querySelector('#se_cy').value,safetyText:ov.querySelector('#se_sf').value,
-        contactName:g('se_cn'),contactPhone:g('se_cp')};
-      state.overviews[site.id]=ovData;
-      await saveOverviewToGAS(site.id,site.name,ovData);
-      showToast('保存しました');ov.remove();renderApp();
+      // 概要データをGASに保存（localStorageには保存しない）
+      const ovData={
+        projectName:g('se_pn'), client:g('se_cl'), designer:g('se_ds'), contractor:g('se_ct'),
+        periodStart:g('se_ps'), periodEnd:g('se_pe'), location:g('se_loc'),
+        structure:g('se_st'), area:g('se_ar'),
+        cycleText:ov.querySelector('#se_cy').value,
+        safetyText:ov.querySelector('#se_sf').value,
+        contactName:g('se_cn'), contactPhone:g('se_cp'),
+      };
+      if(webhook){
+        const ok=await saveOverviewToGAS(site.id, site.name, ovData, webhook);
+        if(ok){
+          state.overviews[site.id]=ovData; // メモリにも反映
+          showToast('保存しました（GAS同期済）');
+        } else {
+          state.overviews[site.id]=ovData; // メモリには反映
+          msg.textContent='⚠ GASへの概要保存に失敗しました。Webhook URLを確認して再度保存してください。';
+          msg.style.display='block';
+          btn.disabled=false; btn.textContent='保存する';
+          return;
+        }
+      } else {
+        state.overviews[site.id]=ovData;
+        showToast('保存しました（Webhook未設定のため端末内のみ）');
+      }
+      ov.remove(); renderApp();
     };
   }
 
@@ -551,11 +602,11 @@
 
   /* KY shared fetch */
   async function fetchSharedKY(){
-    const wh=currentWebhook();
-    if(!wh)return null;
+    const site=currentSite();
+    if(!site?.webhook)return null;
     try{
       state.ky.fetchStatus='loading';
-      const res=await fetch(wh);
+      const res=await fetch(site.webhook);
       if(!res.ok)throw new Error('HTTP '+res.status);
       const json=await res.json();
       if(json.success&&Array.isArray(json.records)){
@@ -574,7 +625,7 @@
   /* KY list (async) */
   async function renderKYList(){
     const site=currentSite();
-    const isShared=!!(currentWebhook());
+    const isShared=!!(site?.webhook);
     tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規</button>`;
     mainArea.innerHTML=`
       <div class="toolbar">
@@ -624,7 +675,7 @@
     const container=mainArea.querySelector('#kyAccordion');
     if(!container)return;
     const site=currentSite();
-    const isShared=!!(currentWebhook());
+    const isShared=!!(site?.webhook);
     const today=todayStr();
 
     let records=isShared?state.ky.sharedRecords:state.ky.records.filter(r=>!r.siteId||r.siteId===state.config.currentSiteId);
@@ -804,11 +855,10 @@
     sortKY();
 
     const site=currentSite();
-    const wh=currentWebhook();
-    if(wh){
+    if(site?.webhook){
       try{
         const workerNames=(record.workers||[]).map(w=>w.name).filter(Boolean).join('、');
-        const res=await fetch(wh,{method:'POST',body:JSON.stringify(Object.assign({},record,{workerNames,type:'ky'}))});
+        const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{workerNames,type:'ky'}))});
         const txt=await res.text();console.log('KY GAS:',txt);
       }catch(err){console.error('KY GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
     }
@@ -932,11 +982,12 @@
     const idx=state.shinki.records.findIndex(r=>r.id===record.id);
     if(idx>=0)state.shinki.records[idx]=record;else state.shinki.records.push(record);sortShinki();
     const site=currentSite();
-    const whSk=currentWebhook();
-    if(whSk){
+    if(site?.webhook){
       try{
-        const res=await fetch(whSk,{method:'POST',body:JSON.stringify(Object.assign({},record,{type:'shinki',qualificationsText:(record.qualifications||[]).join('、')}))});
-        console.log('Shinki GAS:',await res.text());
+        const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{type:'shinki',qualificationsText:(record.qualifications||[]).join('、')}))});
+        const text=await res.text();
+        try{const j=JSON.parse(text);if(!j.success)showToast('GASエラー: '+(j.error||'不明'));}
+        catch(e){console.warn('Shinki GAS: JSONパース失敗',text.slice(0,100));}
       }catch(err){console.error('Shinki GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
     }
     showToast('保存しました');
@@ -963,7 +1014,7 @@
             <div class="field"><label>氏名</label><input type="text" id="ph_nm" value="${esc(state.ky.personal.displayName)}" placeholder="氏名"></div>
           </div>
           <div class="field"><label>コメント</label><textarea id="ph_cm" rows="3" placeholder="報告内容・状況など"></textarea></div>
-          ${!currentWebhook()?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定からWebhook URLを入力してください</div>':''}
+          ${!site?.webhook?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定から写真用Webhook URLを入力してください</div>':''}
           <button class="btn btn-primary btn-block" id="phSubmit">送信する</button>
         </div>
       </div>`;
@@ -982,27 +1033,28 @@
     mainArea.querySelector('#phSubmit').onclick=async()=>{
       const g=id=>mainArea.querySelector('#'+id);
       if(!selectedFile){showToast('写真を選択してください');return;}
-      const wh=currentWebhook();
-      if(!wh){showToast('設定にWebhook URLを入力してください');return;}
+      if(!site?.webhook){showToast('設定に写真用Webhook URLを入力してください');return;}
       const btn=mainArea.querySelector('#phSubmit');
       btn.disabled=true;btn.textContent='送信中…';
       try{
         const {base64,mimeType,fileName}=await resizePhoto(selectedFile);
         const nm=g('ph_nm').value.trim();
         if(nm&&nm!==state.ky.personal.displayName){state.ky.personal.displayName=nm;lsSet('ky:personal',JSON.stringify(state.ky.personal));}
-        const payload={type:'photo',date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,
-          comment:g('ph_cm').value.trim(),siteName:site?.name||'',email:site?.photoEmail||'',
-          photoBase64:base64,mimeType,fileName};
-        const res=await fetch(wh,{method:'POST',body:JSON.stringify(payload)});
+        const payload={type:'photo',date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,comment:g('ph_cm').value.trim(),siteName:site.name||'',email:site.photoEmail||'',photoBase64:base64,mimeType,fileName};
+        const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(payload)});
         const text=await res.text();
         let json;
-        try{json=JSON.parse(text);}catch(e){throw new Error('GASの応答がJSONではありません。再デプロイが必要な可能性があります。');}
+        try{json=JSON.parse(text);}catch(e){
+          console.error('写真GAS: JSONパース失敗',text.slice(0,300));
+          showToast('GASの応答が不正です。再デプロイを確認してください。');
+          btn.disabled=false;btn.textContent='送信する';return;
+        }
         if(json.success){
           showToast('送信しました');
           prev.innerHTML='<div class="ph-hint"><span class="ph-icon">📷</span>タップして写真を選択</div>';
           g('ph_cm').value='';selectedFile=null;
         }else showToast('GASエラー: '+(json.error||'不明'));
-      }catch(err){console.error(err);showToast(err.message||'送信に失敗しました');}
+      }catch(err){console.error(err);showToast('送信に失敗しました');}
       btn.disabled=false;btn.textContent='送信する';
     };
   }
@@ -1015,7 +1067,7 @@
     tbInner.querySelector('#ovG').onclick=()=>openSettings();
     const ov=currentOverview();
     if(!ov?.projectName){
-      mainArea.innerHTML=`<div class="empty-state" style="margin-top:30px;"><div class="big">📄</div>設定から概要情報を入力してください。<br><br><button class="btn btn-primary" id="ovS">設定を開く</button></div>`;
+      mainArea.innerHTML=`<div class="empty-state" style="margin-top:30px;"><div class="big">📄</div>${site?.webhook?'概要データを取得中か、まだ登録されていません。':'設定からWebhook URLと概要を入力してください。'}<br><br><button class="btn btn-primary" id="ovS">設定を開く</button></div>`;
       mainArea.querySelector('#ovS').onclick=()=>openSettings();return;
     }
     const period=[ov.periodStart,ov.periodEnd].filter(Boolean).join(' 〜 ')||'—';
