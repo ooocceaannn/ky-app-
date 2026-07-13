@@ -281,18 +281,17 @@
   function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   function fmtDate(iso){
     if(!iso) return '日付未設定';
-    // yyyy-MM-dd以外（GASのDate型など）を正規化
-    let s = String(iso).trim();
+    var s=String(iso).trim();
     if(!s.match(/^\d{4}-\d{2}-\d{2}/)){
       try{
-        const d=new Date(s);
+        var d=new Date(s);
         if(isNaN(d.getTime())) return s;
         s=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
       }catch(e){ return s; }
     }
-    const[y,m,d]=s.split('-');
-    const wd=['日','月','火','水','木','金','土'][new Date(s+'T00:00:00').getDay()];
-    return y+'年'+Number(m)+'月'+Number(d)+'日（'+wd+'）';
+    var parts=s.split('-');
+    var wd=['日','月','火','水','木','金','土'][new Date(s+'T00:00:00').getDay()];
+    return parts[0]+'年'+Number(parts[1])+'月'+Number(parts[2])+'日（'+wd+'）';
   }
   function esc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function renumber(c,s){c.querySelectorAll(s).forEach((r,i)=>{const n=r.querySelector('.row-num');if(n)n.textContent=i+1;});}
@@ -351,12 +350,11 @@
     sortKY();
     state.shinki.records=lsKeys('shinki:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
     sortShinki();
-    // 現場概要をGASから取得（設定済みの全現場分）
     await fetchAllOverviews();
     renderApp();
   }
 
-  // 全現場の概要をGASから取得（webhookが設定されている現場のみ）
+  // webhookが設定されている全現場の概要をGASから取得
   async function fetchAllOverviews(){
     const webhooks=new Set(state.config.sites.map(s=>s.webhook).filter(Boolean));
     for(const wh of webhooks){
@@ -364,34 +362,29 @@
     }
   }
 
-  // 指定webhookからconfigシートの概要を取得
+  // 1つのwebhookから概要を取得（siteId不問、シートの1件目をそのまま使う）
   async function fetchOverviewsFromWebhook(webhook){
     if(!webhook) return;
     try{
       const res=await fetch(webhook+'?type=config');
       const text=await res.text();
-      let json;
-      try{json=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗',text.slice(0,200));return;}
-      if(json.success&&json.overviews){
-        // 取得した全現場の概要をstateにマージ
-        Object.assign(state.overviews, json.overviews);
+      let parsed;
+      try{parsed=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗',text.slice(0,200));return;}
+      if(parsed.success && parsed.overview){
+        // siteIdに関係なく現在の現場にマップ
+        state.overviews[state.config.currentSiteId]=parsed.overview;
       }
     }catch(e){console.warn('概要取得失敗:',e);}
   }
 
-  // 現場概要をGASのconfigシートに保存（webhookを明示的に指定）
-  async function saveOverviewToGAS(siteId, siteName, ov, webhook){
-    if(!webhook){console.warn('saveOverviewToGAS: webhookが未設定');return false;}
+  // 現場概要をGASに保存（2行目固定上書き、siteId不問）
+  async function saveOverviewToGAS(siteId,siteName,ov,webhook){
+    if(!webhook){console.warn('saveOverviewToGAS: webhook未設定');return false;}
     try{
       const res=await fetch(webhook,{method:'POST',body:JSON.stringify({type:'config',siteId,siteName,...ov})});
       const text=await res.text();
-      try{
-        const json=JSON.parse(text);
-        return json.success===true;
-      }catch(e){
-        console.warn('概要保存: JSONパース失敗',text.slice(0,200));
-        return false;
-      }
+      try{const j=JSON.parse(text);return j.success===true;}
+      catch(e){console.warn('概要保存: JSONパース失敗',text.slice(0,200));return false;}
     }catch(e){console.warn('概要保存失敗:',e);return false;}
   }
 
@@ -489,7 +482,6 @@
   }
 
   function renderSiteEdit(ov,site,isNew){
-    // 概要はstate.overviewsから取得（GASが正）、フォールバックはsite.overview（旧localStorage）
     const o=state.overviews[site.id]||site.overview||{};
     ov.innerHTML=`<div class="settings-drawer">
       <div class="settings-handle">
@@ -526,7 +518,7 @@
           <div class="sfield" style="margin:0;"><label>TEL</label><input type="text" id="se_cp" value="${esc(o.contactPhone||'')}"></div>
         </div>
         <div id="se_msg" style="font-size:12px;color:var(--red);margin-bottom:8px;display:none;"></div>
-        <div style="padding-bottom:20px;display:flex;gap:10px;">
+        <div style="padding-bottom:20px;">
           <button class="btn btn-primary btn-block" id="se_save">保存する</button>
         </div>
       </div></div>`;
@@ -539,41 +531,33 @@
       const webhook=g('se_wh');
       const btn=ov.querySelector('#se_save');
       const msg=ov.querySelector('#se_msg');
-      btn.disabled=true; btn.textContent='保存中…'; msg.style.display='none';
-      // localStorageにはwebhookとメール住所のみ保存
-      site.name=name; site.webhook=webhook; site.photoEmail=g('se_email');
+      btn.disabled=true;btn.textContent='保存中…';msg.style.display='none';
+      site.name=name;site.webhook=webhook;site.photoEmail=g('se_email');
       delete site.overview; // 旧localStorage概要を削除
-      if(isNew){
-        state.config.sites.push(site);
-        if(!state.config.currentSiteId) state.config.currentSiteId=site.id;
-      }
+      if(isNew){state.config.sites.push(site);if(!state.config.currentSiteId)state.config.currentSiteId=site.id;}
       saveConfig();
-      // 概要データをGASに保存（localStorageには保存しない）
       const ovData={
-        projectName:g('se_pn'), client:g('se_cl'), designer:g('se_ds'), contractor:g('se_ct'),
-        periodStart:g('se_ps'), periodEnd:g('se_pe'), location:g('se_loc'),
-        structure:g('se_st'), area:g('se_ar'),
+        projectName:g('se_pn'),client:g('se_cl'),designer:g('se_ds'),contractor:g('se_ct'),
+        periodStart:g('se_ps'),periodEnd:g('se_pe'),location:g('se_loc'),
+        structure:g('se_st'),area:g('se_ar'),
         cycleText:ov.querySelector('#se_cy').value,
         safetyText:ov.querySelector('#se_sf').value,
-        contactName:g('se_cn'), contactPhone:g('se_cp'),
+        contactName:g('se_cn'),contactPhone:g('se_cp'),
       };
+      state.overviews[site.id]=ovData;
       if(webhook){
-        const ok=await saveOverviewToGAS(site.id, site.name, ovData, webhook);
-        if(ok){
-          state.overviews[site.id]=ovData; // メモリにも反映
-          showToast('保存しました（GAS同期済）');
-        } else {
-          state.overviews[site.id]=ovData; // メモリには反映
-          msg.textContent='⚠ GASへの概要保存に失敗しました。Webhook URLを確認して再度保存してください。';
+        const ok=await saveOverviewToGAS(site.id,site.name,ovData,webhook);
+        if(!ok){
+          msg.textContent='⚠ GASへの概要保存に失敗しました。Webhook URLを確認してください。';
           msg.style.display='block';
-          btn.disabled=false; btn.textContent='保存する';
+          btn.disabled=false;btn.textContent='保存する';
           return;
         }
-      } else {
-        state.overviews[site.id]=ovData;
+        showToast('保存しました（GAS同期済）');
+      }else{
         showToast('保存しました（Webhook未設定のため端末内のみ）');
       }
-      ov.remove(); renderApp();
+      ov.remove();renderApp();
     };
   }
 
@@ -985,9 +969,9 @@
     if(site?.webhook){
       try{
         const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{type:'shinki',qualificationsText:(record.qualifications||[]).join('、')}))});
-        const text=await res.text();
-        try{const j=JSON.parse(text);if(!j.success)showToast('GASエラー: '+(j.error||'不明'));}
-        catch(e){console.warn('Shinki GAS: JSONパース失敗',text.slice(0,100));}
+        const txt=await res.text();
+        try{const j=JSON.parse(txt);if(!j.success)showToast('GASエラー: '+(j.error||'不明'));}
+        catch(e){console.warn('Shinki GAS: JSONパース失敗');}
       }catch(err){console.error('Shinki GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
     }
     showToast('保存しました');
@@ -1044,7 +1028,8 @@
         const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(payload)});
         const text=await res.text();
         let json;
-        try{json=JSON.parse(text);}catch(e){
+        try{json=JSON.parse(text);}
+        catch(e){
           console.error('写真GAS: JSONパース失敗',text.slice(0,300));
           showToast('GASの応答が不正です。再デプロイを確認してください。');
           btn.disabled=false;btn.textContent='送信する';return;
