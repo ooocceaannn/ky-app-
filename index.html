@@ -439,7 +439,7 @@
 
   /* ---- SETTINGS ---- */
   function blankSite(){
-    return {id:uid('site'),name:'',webhook:'',photoEmail:''};
+    return {id:uid('site'),name:'',webhook:'',imgbbKey:''};
   }
 
   function openSettings(forceAdd=false){
@@ -495,7 +495,8 @@
         <div class="stitle">GAS Webhook URL（全機能共通）</div>
         <div class="sfield" style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">KY・新規入場・写真・概要すべてに使用。各端末で同じURLを設定してください。</div>
         <div class="sfield"><label>Webhook URL</label><input type="text" id="se_wh" value="${esc(site.webhook||'')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
-        <div class="sfield"><label>写真報告 送信先メールアドレス</label><input type="text" id="se_email" value="${esc(site.photoEmail||'')}" placeholder="example@gmail.com"></div>
+        <div class="sfield"><label>ImgBB APIキー（写真アップロード用）</label><input type="text" id="se_imgbb" value="${esc(site.imgbbKey||'')}" placeholder="取得したAPIキーを貼り付け"></div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">imgbb.comで無料アカウントを作成 → APIページでキーを取得してください。</div>
         <div class="stitle">工事概要 ※保存するとスプレッドシートに反映・全端末で共有されます</div>
         <div class="sfield"><label>工事名</label><input type="text" id="se_pn" value="${esc(o.projectName||'')}"></div>
         <div class="sfield"><label>発注者</label><input type="text" id="se_cl" value="${esc(o.client||'')}"></div>
@@ -532,7 +533,7 @@
       const btn=ov.querySelector('#se_save');
       const msg=ov.querySelector('#se_msg');
       btn.disabled=true;btn.textContent='保存中…';msg.style.display='none';
-      site.name=name;site.webhook=webhook;site.photoEmail=g('se_email');
+      site.name=name;site.webhook=webhook;site.imgbbKey=g('se_imgbb');
       delete site.overview; // 旧localStorage概要を削除
       if(isNew){state.config.sites.push(site);if(!state.config.currentSiteId)state.config.currentSiteId=site.id;}
       saveConfig();
@@ -986,6 +987,8 @@
     tbInner.innerHTML=`<div class="stamp-mark" style="font-size:16px;">📸</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="gear-btn" id="phGear">⚙</button>`;
     tbInner.querySelector('#phGear').onclick=()=>openSettings();
     const today=todayStr();
+    const warn=(!site?.webhook?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定からWebhook URLを入力してください</div>':'')
+              +(!site?.imgbbKey?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定からImgBB APIキーを入力してください</div>':'');
     mainArea.innerHTML=`
       <div class="section" style="margin-top:16px;">
         <div class="section-head">写真報告</div>
@@ -998,7 +1001,7 @@
             <div class="field"><label>氏名</label><input type="text" id="ph_nm" value="${esc(state.ky.personal.displayName)}" placeholder="氏名"></div>
           </div>
           <div class="field"><label>コメント</label><textarea id="ph_cm" rows="3" placeholder="報告内容・状況など"></textarea></div>
-          ${!site?.webhook?'<div style="font-size:12px;color:var(--red);margin-bottom:8px;">⚠ 設定から写真用Webhook URLを入力してください</div>':''}
+          ${warn}
           <button class="btn btn-primary btn-block" id="phSubmit">送信する</button>
         </div>
       </div>`;
@@ -1010,36 +1013,47 @@
     input.onchange=()=>{
       const file=input.files[0];if(!file)return;
       selectedFile=file;
-      const url=URL.createObjectURL(file);
-      prev.innerHTML=`<img src="${url}" alt="preview">`;
+      prev.innerHTML=`<img src="${URL.createObjectURL(file)}" alt="preview">`;
     };
 
     mainArea.querySelector('#phSubmit').onclick=async()=>{
       const g=id=>mainArea.querySelector('#'+id);
       if(!selectedFile){showToast('写真を選択してください');return;}
-      if(!site?.webhook){showToast('設定に写真用Webhook URLを入力してください');return;}
+      if(!site?.imgbbKey){showToast('設定にImgBB APIキーを入力してください');return;}
+      if(!site?.webhook){showToast('設定にWebhook URLを入力してください');return;}
       const btn=mainArea.querySelector('#phSubmit');
-      btn.disabled=true;btn.textContent='送信中…';
+      btn.disabled=true;btn.textContent='アップロード中…';
       try{
-        const {base64,mimeType,fileName}=await resizePhoto(selectedFile);
+        // 1. 写真をImgBBにアップロード（DriveApp不要）
+        const {base64}=await resizePhoto(selectedFile);
+        const fd=new FormData();
+        fd.append('image',base64);
+        const imgRes=await fetch('https://api.imgbb.com/1/upload?key='+site.imgbbKey,{method:'POST',body:fd});
+        const imgData=await imgRes.json();
+        if(!imgData.success){
+          showToast('画像アップロード失敗: '+(imgData.error?.message||'ImgBBエラー'));
+          btn.disabled=false;btn.textContent='送信する';return;
+        }
+        const imageUrl=imgData.data.url;
+        const thumbUrl=imgData.data.thumb?.url||imageUrl;
+
+        // 2. メタデータをGASに送信（SpreadsheetAppのみ使用）
         const nm=g('ph_nm').value.trim();
         if(nm&&nm!==state.ky.personal.displayName){state.ky.personal.displayName=nm;lsSet('ky:personal',JSON.stringify(state.ky.personal));}
-        const payload={type:'photo',date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,comment:g('ph_cm').value.trim(),siteName:site.name||'',email:site.photoEmail||'',photoBase64:base64,mimeType,fileName};
+        const payload={type:'photo',date:g('ph_d').value,company:g('ph_co').value.trim(),name:nm,comment:g('ph_cm').value.trim(),siteName:site.name||'',imageUrl,thumbUrl};
         const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(payload)});
         const text=await res.text();
         let json;
-        try{json=JSON.parse(text);}
-        catch(e){
-          console.error('写真GAS: JSONパース失敗',text.slice(0,300));
-          showToast('GASの応答が不正です。再デプロイを確認してください。');
-          btn.disabled=false;btn.textContent='送信する';return;
-        }
+        try{json=JSON.parse(text);}catch(e){json={success:false,error:'JSONパース失敗'};}
         if(json.success){
           showToast('送信しました');
           prev.innerHTML='<div class="ph-hint"><span class="ph-icon">📷</span>タップして写真を選択</div>';
           g('ph_cm').value='';selectedFile=null;
         }else showToast('GASエラー: '+(json.error||'不明'));
-      }catch(err){console.error(err);showToast('送信に失敗しました');}
+      }catch(err){
+        console.error('写真送信エラー:',err);
+        showToast('送信に失敗しました: '+err.message);
+      }
       btn.disabled=false;btn.textContent='送信する';
     };
   }
