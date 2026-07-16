@@ -232,12 +232,12 @@
   const mainArea=document.getElementById('mainArea');
 
   /* ---- CONSTANTS ---- */
-/* ============================================================
+  /* ============================================================
      ★ デプロイ時にここを設定する（業者含む全員に適用）
   ============================================================ */
-  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbzatGM677etiU6n7bBvOczl_-VkF0o192Ak6fGa4jbi595qqeI7IrHxZlNng-JsvYxzcQ/exec';
-  const DEFAULT_SITE_NAME = 'コメリBHG小出店増改修工事';
-  const DEFAULT_IMGBB_KEY = '3850099d7011120d695b1c72fc969289';
+  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbzqxgmslCg_2Vg12kh5gWkw9r74thHdQVlcwO1iJxJzmyNVkUsA5G6D9W5dGqnsSq0JdA/exec'; // ← GASのWebhook URLをここに貼る
+  const DEFAULT_SITE_NAME = 'コメリBHG小出店増改修工事'; // ← 現場名をここに入れる（例: '○○新築工事'）
+  const DEFAULT_IMGBB_KEY = '3850099d7011120d695b1c72fc969289'; // ← ImgBBのAPIキーをここに貼る
   /* ============================================================ */
 
   const TABS=[
@@ -375,7 +375,7 @@
   async function fetchOverviewsFromWebhook(webhook){
     if(!webhook) return;
     try{
-      const res=await fetch(webhook+'?type=config');
+      const res=await fetch(webhook,{method:'POST',body:JSON.stringify({type:'fetch_config'})});
       const text=await res.text();
       let parsed;
       try{parsed=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗');return;}
@@ -609,7 +609,7 @@
     if(!site?.webhook)return null;
     try{
       state.ky.fetchStatus='loading';
-      const res=await fetch(site.webhook);
+      const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify({type:'fetch_ky'})});
       if(!res.ok)throw new Error('HTTP '+res.status);
       const json=await res.json();
       if(json.success&&Array.isArray(json.records)){
