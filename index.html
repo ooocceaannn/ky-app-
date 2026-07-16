@@ -232,6 +232,14 @@
   const mainArea=document.getElementById('mainArea');
 
   /* ---- CONSTANTS ---- */
+  /* ============================================================
+     ★ デプロイ時にここを設定する（業者含む全員に適用）
+  ============================================================ */
+  const DEFAULT_WEBHOOK   = ''; // ← GASのWebhook URLをここに貼る
+  const DEFAULT_SITE_NAME = ''; // ← 現場名をここに入れる（例: '○○新築工事'）
+  const DEFAULT_IMGBB_KEY = ''; // ← ImgBBのAPIキーをここに貼る
+  /* ============================================================ */
+
   const TABS=[
     {id:'ky',   label:'KY活動'},
     {id:'shinki',label:'新規入場'},
@@ -357,6 +365,7 @@
   // webhookが設定されている全現場の概要をGASから取得
   async function fetchAllOverviews(){
     const webhooks=new Set(state.config.sites.map(s=>s.webhook).filter(Boolean));
+    if(DEFAULT_WEBHOOK) webhooks.add(DEFAULT_WEBHOOK);
     for(const wh of webhooks){
       await fetchOverviewsFromWebhook(wh);
     }
@@ -369,10 +378,10 @@
       const res=await fetch(webhook+'?type=config');
       const text=await res.text();
       let parsed;
-      try{parsed=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗',text.slice(0,200));return;}
+      try{parsed=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗');return;}
       if(parsed.success && parsed.overview){
-        // siteIdに関係なく現在の現場にマップ
-        state.overviews[state.config.currentSiteId]=parsed.overview;
+        const targetId=state.config.currentSiteId||'__default__';
+        state.overviews[targetId]=parsed.overview;
       }
     }catch(e){console.warn('概要取得失敗:',e);}
   }
@@ -398,8 +407,17 @@
   }
 
   function saveConfig(){lsSet('app:config',JSON.stringify(state.config));}
-  function currentSite(){return state.config.sites.find(s=>s.id===state.config.currentSiteId)||null;}
-  function currentOverview(){return state.overviews[state.config.currentSiteId]||null;}
+  function currentSite(){
+    // 設定済みの現場があればそれを使う
+    const s=state.config.sites.find(s=>s.id===state.config.currentSiteId);
+    if(s) return s;
+    // 未設定でもDEFAULT_WEBHOOKがあれば仮の現場として返す
+    if(DEFAULT_WEBHOOK){
+      return {id:'__default__',name:DEFAULT_SITE_NAME||'現場',webhook:DEFAULT_WEBHOOK,imgbbKey:DEFAULT_IMGBB_KEY};
+    }
+    return null;
+  }
+  function currentOverview(){return state.overviews[state.config.currentSiteId]||state.overviews['__default__']||null;}
   function renderLoading(){tbInner.innerHTML=`<div class="stamp-mark">安</div><div class="site-name">読み込み中…</div>`;tabBarWrap.style.display='none';mainArea.innerHTML=`<div class="loading-state">読み込み中…</div>`;}
 
   /* ---- APP RENDER ---- */
