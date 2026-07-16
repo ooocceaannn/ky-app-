@@ -235,7 +235,7 @@
   /* ============================================================
      ★ デプロイ時にここを設定する（業者含む全員に適用）
   ============================================================ */
-  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbxDQn9vF-0l9H1ejdLwQytyKwOqrwMQI7zxHHPFbQtonY4vjTY-EI3F-9BoreEoz9qhvg/exec'; // ← GASのWebhook URLをここに貼る
+  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbzzouD3EKD7s_VszbvcXZTxy8BTzLxe8nKQZOHaNMUVyGgOvFfUm6mvuJ2gtfCACKmW/exec'; // ← GASのWebhook URLをここに貼る
   const DEFAULT_SITE_NAME = 'コメリBHG小出店増改修工事'; // ← 現場名をここに入れる（例: '○○新築工事'）
   const DEFAULT_IMGBB_KEY = '3850099d7011120d695b1c72fc969289'; // ← ImgBBのAPIキーをここに貼る
   /* ============================================================ */
@@ -610,16 +610,26 @@
     try{
       state.ky.fetchStatus='loading';
       const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify({type:'fetch_ky'})});
-      if(!res.ok)throw new Error('HTTP '+res.status);
-      const json=await res.json();
-      if(json.success&&Array.isArray(json.records)){
-        state.ky.sharedRecords=json.records;
-        state.ky.fetchStatus='ok';
-        return json.records;
+      const text=await res.text();
+      let parsed;
+      try{parsed=JSON.parse(text);}
+      catch(e){
+        console.error('KY fetch: JSONパース失敗\n'+text.slice(0,500));
+        state.ky._lastError='GASの応答がJSONではありません。再デプロイを確認してください。\n内容: '+text.slice(0,120);
+        state.ky.fetchStatus='error';
+        return null;
       }
-      throw new Error('bad response');
+      if(parsed.success&&Array.isArray(parsed.records)){
+        state.ky.sharedRecords=parsed.records;
+        state.ky.fetchStatus='ok';
+        return parsed.records;
+      }
+      state.ky._lastError='GASエラー: '+(parsed.error||JSON.stringify(parsed).slice(0,120));
+      state.ky.fetchStatus='error';
+      return null;
     }catch(err){
       console.error('KY fetch:',err);
+      state.ky._lastError='通信エラー: '+err.message;
       state.ky.fetchStatus='error';
       return null;
     }
@@ -650,7 +660,7 @@
     if(isShared){
       const recs=await fetchSharedKY();
       if(recs===null){
-        mainArea.querySelector('#kyAccordion').innerHTML=`<div class="empty-state"><div class="big">⚠️</div>データの取得に失敗しました。<br>Webhook URLまたは接続を確認してください。<br><button class="btn btn-ghost btn-sm" id="kyRetry" style="margin-top:12px;">再試行</button></div>`;
+        mainArea.querySelector('#kyAccordion').innerHTML=`<div class="empty-state"><div class="big">⚠️</div><div style="font-size:13px;color:var(--red);white-space:pre-wrap;text-align:left;background:var(--surface);border-radius:8px;padding:12px;margin:10px 0;">${esc(state.ky._lastError||'不明なエラー')}</div><button class="btn btn-ghost btn-sm" id="kyRetry" style="margin-top:8px;">再試行</button></div>`;
         mainArea.querySelector('#kyRetry')?.addEventListener('click',()=>renderKYList());
         return;
       }
@@ -1087,7 +1097,8 @@
       mainArea.innerHTML=`<div class="empty-state" style="margin-top:30px;"><div class="big">📄</div>${site?.webhook?'概要データを取得中か、まだ登録されていません。':'設定からWebhook URLと概要を入力してください。'}<br><br><button class="btn btn-primary" id="ovS">設定を開く</button></div>`;
       mainArea.querySelector('#ovS').onclick=()=>openSettings();return;
     }
-    const period=[ov.periodStart,ov.periodEnd].filter(Boolean).join(' 〜 ')||'—';
+    const fmtD=d=>{if(!d)return '';const s=String(d).trim();if(!s.match(/^\d{4}-\d{2}-\d{2}/))return s;const p=s.split('-');return p[0]+'年'+Number(p[1])+'月'+Number(p[2])+'日';};
+    const period=[ov.periodStart,ov.periodEnd].filter(Boolean).map(fmtD).join(' 〜 ')||'—';
     const row=(l,v)=>v?`<div class="ov-row"><div class="ov-label">${esc(l)}</div><div class="ov-value">${v}</div></div>`:'';
     mainArea.innerHTML=`
       <div class="section" style="margin-top:16px;"><div class="section-head">工事概要</div><div class="section-body">
