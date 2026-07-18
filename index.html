@@ -235,7 +235,7 @@
   /* ============================================================
      ★ デプロイ時にここを設定する（業者含む全員に適用）
   ============================================================ */
-  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbwOtHfpVT8RZZD4AdLebQxDmI7x7dzlUfIbRuxxYky2LylAYlKSQ--VUDrBDmuYUVDlHg/exec'; // ← GASのWebhook URLをここに貼る
+  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbyt3WJqB4y5-jNjPzVY3YgCFQpI5NjRlET74KrHtwwJovUk2PABR3650LA1RgxmqSPVcg/exec'; // ← GASのWebhook URLをここに貼る
   const DEFAULT_SITE_NAME = 'コメリBHG小出店増改修工事'; // ← 現場名をここに入れる（例: '○○新築工事'）
   const DEFAULT_IMGBB_KEY = '3850099d7011120d695b1c72fc969289'; // ← ImgBBのAPIキーをここに貼る
   /* ============================================================ */
@@ -269,7 +269,7 @@
     config:{currentSiteId:null,sites:[]},
     ky:{
       view:'list',records:[],
-      sharedRecords:[],fetchStatus:'idle',
+      openDates:new Set(),
       openDates:new Set(),
       currentId:null,filter:{q:'',date:''},
       shared:{companyName:''},personal:{displayName:''},
@@ -604,148 +604,183 @@
   }
 
   /* KY shared fetch */
-  async function fetchSharedKY(){
+  /* ================================================================
+     KY MODULE — 再設計版
+     ・今日の全員分 → GASから取得（今日のみ）→ 読み取り専用カード
+     ・自分の記録   → localStorage → 編集可能カード
+     ・isShared分岐を廃止、非同期の混乱を排除
+  ================================================================ */
+
+  // 今日のKYをGASから取得（今日のデータのみ返す設計）
+  async function fetchTodayKY(){
     const site=currentSite();
-    if(!site?.webhook)return null;
+    if(!site?.webhook) return {ok:false, error:'Webhook URLが設定されていません'};
     try{
-      state.ky.fetchStatus='loading';
-      const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify({type:'fetch_ky'})});
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),10000); // 10秒タイムアウト
+      const res=await fetch(site.webhook,{
+        method:'POST',
+        body:JSON.stringify({type:'fetch_ky'}),
+        signal:controller.signal,
+      });
+      clearTimeout(timer);
       const text=await res.text();
       let parsed;
-      try{parsed=JSON.parse(text);}
+      try{ parsed=JSON.parse(text); }
       catch(e){
-        console.error('KY fetch: JSONパース失敗\n'+text.slice(0,500));
-        state.ky._lastError='GASの応答がJSONではありません。再デプロイを確認してください。\n内容: '+text.slice(0,120);
-        state.ky.fetchStatus='error';
-        return null;
+        console.error('fetch_ky: JSONパース失敗',text.slice(0,300));
+        return {ok:false, error:'GASの応答がJSONではありません。再デプロイを確認してください。'};
       }
-      if(parsed.success&&Array.isArray(parsed.records)){
-        state.ky.sharedRecords=parsed.records;
-        state.ky.fetchStatus='ok';
-        return parsed.records;
+      if(parsed.success && Array.isArray(parsed.records)){
+        return {ok:true, records:parsed.records};
       }
-      state.ky._lastError='GASエラー: '+(parsed.error||JSON.stringify(parsed).slice(0,120));
-      state.ky.fetchStatus='error';
-      return null;
+      return {ok:false, error:'GASエラー: '+(parsed.error||JSON.stringify(parsed).slice(0,100))};
     }catch(err){
-      console.error('KY fetch:',err);
-      state.ky._lastError='通信エラー: '+err.message;
-      state.ky.fetchStatus='error';
-      return null;
+      if(err.name==='AbortError') return {ok:false, error:'タイムアウトしました（10秒）'};
+      return {ok:false, error:'通信エラー: '+err.message};
     }
   }
 
-  /* KY list (async) */
-  async function renderKYList(){
-    const site=currentSite();
-    const isShared=!!(site?.webhook);
-    tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規</button>`;
-    mainArea.innerHTML=`
-      <div class="toolbar">
-        <input type="text" class="search-input" id="kySearch" placeholder="作業内容・会社名・職長名" value="${esc(state.ky.filter.q)}">
-        ${!isShared?`<input type="date" class="date-input" id="kyDate" value="${esc(state.ky.filter.date)}">` : `<button class="btn btn-ghost btn-sm" id="kyRefresh">↺ 更新</button>`}
-        <button class="clear-btn" id="kyClear">クリア</button>
-      </div>
-      <div id="kyAccordion">${isShared?'<div class="loading-state">共有データを取得中…</div>':''}</div>`;
-
-    tbInner.querySelector('#kyNewBtn').onclick=()=>openKYForm(null);
-    const si=mainArea.querySelector('#kySearch');
-    si.addEventListener('input',()=>{state.ky.filter.q=si.value;renderKYAccordion();});
-    const di=mainArea.querySelector('#kyDate');
-    if(di)di.addEventListener('change',()=>{state.ky.filter.date=di.value;renderKYAccordion();});
-    const rf=mainArea.querySelector('#kyRefresh');
-    if(rf)rf.onclick=async()=>{rf.textContent='取得中…';rf.disabled=true;await fetchSharedKY();renderKYAccordion();rf.textContent='↺ 更新';rf.disabled=false;};
-    mainArea.querySelector('#kyClear').onclick=()=>{state.ky.filter={q:'',date:''};si.value='';if(di)di.value='';renderKYAccordion();};
-
-    if(isShared){
-      const recs=await fetchSharedKY();
-      if(recs===null){
-        mainArea.querySelector('#kyAccordion').innerHTML=`<div class="empty-state"><div class="big">⚠️</div><div style="font-size:13px;color:var(--red);white-space:pre-wrap;text-align:left;background:var(--surface);border-radius:8px;padding:12px;margin:10px 0;">${esc(state.ky._lastError||'不明なエラー')}</div><button class="btn btn-ghost btn-sm" id="kyRetry" style="margin-top:8px;">再試行</button></div>`;
-        mainArea.querySelector('#kyRetry')?.addEventListener('click',()=>renderKYList());
-        return;
-      }
-    }
-    renderKYAccordion();
-  }
-
-  function kyCardHtml(r,readOnly){
+  // KYカードHTML（shared=読み取り専用、mine=編集可）
+  function kyCardHtml(r, opts){
+    opts=opts||{};
     const sc=r.result==='ok'?'ok':r.result==='ng'?'ng':'pending';
     const st=r.result==='ok'?'可':r.result==='ng'?'不可':'未判定';
-    const workers=r.workers;
     let wLabel='';
-    if(typeof workers==='string')wLabel=workers.split('、').filter(Boolean).length+'名';
-    else if(Array.isArray(workers))wLabel=workers.filter(w=>w.name&&w.name.trim()).length+'名';
-    return `<div class="record-card${readOnly?' readonly-card':''}" ${readOnly?'':` data-id="${esc(r.id||'')}"`}>
+    if(typeof r.workers==='string') wLabel=r.workers.split('、').filter(Boolean).length+'名';
+    else if(Array.isArray(r.workers)) wLabel=r.workers.filter(w=>w&&w.name).length+'名';
+    return `<div class="record-card${opts.readonly?' readonly-card':''}" ${opts.readonly?'':` data-id="${esc(r.id||'')}"`}>
       <div class="stamp ${sc}">${st}</div>
       <div class="record-date">${fmtDate(r.date)}</div>
       <div class="record-meta">${esc(r.companyName||'会社名未入力')}${r.foreman?'　職長: '+esc(r.foreman):''}</div>
       <div class="record-work ${r.workContent?'':'empty'}">${r.workContent?esc(r.workContent):'作業内容が未入力です'}</div>
-      <div class="record-footer"><span>作業員 ${wLabel}</span><span>${esc(r.projectName||r.enteredBy||'')}</span></div>
+      <div class="record-footer"><span>${wLabel?'作業員 '+wLabel:''}</span><span>${esc(r.enteredBy||r.projectName||'')}</span></div>
     </div>`;
   }
 
-  function renderKYAccordion(){
-    const container=mainArea.querySelector('#kyAccordion');
-    if(!container)return;
+  // KYリストを描画（同期部分）→ 非同期でGASセクションを差し込む
+  function renderKYList(){
     const site=currentSite();
-    const isShared=!!(site?.webhook);
     const today=todayStr();
+    tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規</button>`;
 
-    let records=isShared?state.ky.sharedRecords:state.ky.records.filter(r=>!r.siteId||r.siteId===state.config.currentSiteId);
-    const q=state.ky.filter.q.toLowerCase();
-    const df=state.ky.filter.date;
-    if(q||df)records=records.filter(r=>{
-      if(df&&r.date!==df)return false;
-      if(q){const h=[r.workContent,r.companyName,r.foreman,r.notes,typeof r.workers==='string'?r.workers:(r.workers||[]).map(w=>w.name).join(' ')].join(' ').toLowerCase();if(!h.includes(q))return false;}
-      return true;
+    // 自分の記録（localStorage）
+    const siteId=state.config.currentSiteId||'__default__';
+    const myRecords=state.ky.records.filter(r=>!r.siteId||r.siteId===siteId||r.siteId==='__default__');
+    const myTodayRecords=myRecords.filter(r=>r.date===today);
+    const myPastRecords=myRecords.filter(r=>r.date!==today);
+
+    // 自分の今日の記録カード（編集可能）
+    const myTodayHtml=myTodayRecords.length
+      ? myTodayRecords.map(r=>kyCardHtml(r,{readonly:false})).join('')
+      : '';
+
+    // 自分の過去の記録（折りたたみ）
+    let myPastHtml='';
+    if(myPastRecords.length){
+      const groups={};
+      myPastRecords.forEach(r=>{const d=r.date||'不明';if(!groups[d])groups[d]=[];groups[d].push(r);});
+      const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+      myPastHtml=dates.slice(0,7).map(date=>{
+        const isOpen=state.ky.openDates.has(date);
+        const recs=groups[date];
+        return `<div class="date-group">
+          <div class="date-group-hd" data-date="${esc(date)}" aria-expanded="${isOpen}">
+            <span>${fmtDate(date)}</span>
+            <span style="display:flex;align-items:center;gap:4px;opacity:.9;">${recs.length}件<span class="date-group-arrow">▼</span></span>
+          </div>
+          <div class="date-group-body ${isOpen?'open':''}">
+            <div class="card-list" style="padding-bottom:8px;">${recs.map(r=>kyCardHtml(r,{readonly:false})).join('')}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    mainArea.innerHTML=`
+      <div style="margin-top:14px;">
+        <!-- 今日の全員分（GASから） -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.08em;">📅 今日の全員のKY（${fmtDate(today)}）</div>
+          <button class="btn btn-ghost btn-sm" id="kyRefresh" style="padding:5px 10px;font-size:12px;">↺ 更新</button>
+        </div>
+        <div id="kyTodayShared" style="margin-bottom:20px;">
+          ${site?.webhook
+            ? '<div class="loading-state" style="padding:30px 0;">取得中…</div>'
+            : '<div class="empty-state" style="padding:20px;"><span style="font-size:13px;">Webhook URLを設定するとここに全員のKYが表示されます。</span></div>'}
+        </div>
+
+        <!-- 自分の記録 -->
+        <div style="font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.08em;margin-bottom:8px;">📋 自分の記録</div>
+        ${myTodayHtml
+          ? `<div class="card-list" id="kyMyToday" style="margin-bottom:12px;">${myTodayHtml}</div>`
+          : `<div style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">今日の記録はまだありません。「＋ 新規」から作成してください。</div>`}
+        ${myPastHtml
+          ? `<div id="kyMyPast">${myPastHtml}</div>`
+          : ''}
+      </div>`;
+
+    // ボタン類のイベント
+    tbInner.querySelector('#kyNewBtn').onclick=()=>openKYForm(null);
+
+    // 自分の記録カードのクリック（編集）
+    mainArea.querySelectorAll('.record-card[data-id]').forEach(c=>{
+      c.addEventListener('click',()=>openKYForm(c.dataset.id));
     });
 
-    if(records.length===0){
-      container.innerHTML=`<div class="empty-state"><div class="big">📋</div>${isShared?'シートに記録がありません。':'まだKY記録がありません。「＋ 新規」から作成してください。'}</div>`;
-      return;
-    }
-
-    // group by date
-    const groups={};
-    records.forEach(r=>{const d=r.date||'不明';if(!groups[d])groups[d]=[];groups[d].push(r);});
-    const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
-
-    // default open
-    if(state.ky.openDates.size===0){
-      state.ky.openDates.add(groups[today]?today:dates[0]);
-    }
-
-    container.innerHTML=dates.map(date=>{
-      const isToday=date===today;
-      const isOpen=state.ky.openDates.has(date);
-      const recs=groups[date];
-      return `<div class="date-group">
-        <div class="date-group-hd ${isToday?'today':''}" data-date="${esc(date)}" aria-expanded="${isOpen}">
-          <span>${fmtDate(date)}${isToday?'　📅 今日':''}</span>
-          <span style="display:flex;align-items:center;gap:4px;opacity:.9;">${recs.length}件<span class="date-group-arrow">▼</span></span>
-        </div>
-        <div class="date-group-body ${isOpen?'open':''}">
-          <div class="card-list" style="padding-bottom:8px;">${recs.map(r=>kyCardHtml(r,isShared)).join('')}</div>
-        </div>
-      </div>`;
-    }).join('');
-
-    container.querySelectorAll('.date-group-hd').forEach(hd=>{
+    // 過去の記録アコーディオン
+    mainArea.querySelectorAll('.date-group-hd').forEach(hd=>{
       hd.onclick=()=>{
         const d=hd.dataset.date;
         const body=hd.nextElementSibling;
         const nowOpen=body.classList.contains('open');
         body.classList.toggle('open',!nowOpen);
         hd.setAttribute('aria-expanded',String(!nowOpen));
-        if(nowOpen)state.ky.openDates.delete(d);else state.ky.openDates.add(d);
+        if(nowOpen) state.ky.openDates.delete(d); else state.ky.openDates.add(d);
       };
     });
 
-    if(!isShared){
-      container.querySelectorAll('.record-card[data-id]').forEach(c=>{
-        c.addEventListener('click',()=>openKYForm(c.dataset.id));
-      });
-    }
+    // 更新ボタン
+    const rf=mainArea.querySelector('#kyRefresh');
+    if(rf) rf.onclick=()=>loadTodaySharedKY();
+
+    // GASから今日の全員分を非同期で取得・差し込み
+    if(site?.webhook) loadTodaySharedKY();
+  }
+
+  // 今日の全員分をGASから取得してDOMに差し込む（独立した非同期処理）
+  function loadTodaySharedKY(){
+    const container=mainArea.querySelector('#kyTodayShared');
+    if(!container) return; // 画面が変わっていたら何もしない
+    const rf=mainArea.querySelector('#kyRefresh');
+    if(rf){rf.disabled=true;rf.textContent='取得中…';}
+    container.innerHTML='<div class="loading-state" style="padding:30px 0;">取得中…</div>';
+
+    fetchTodayKY().then(function(result){
+      // DOMがまだあるか確認（タブ切替などで消えている場合は何もしない）
+      const c=mainArea.querySelector('#kyTodayShared');
+      if(!c) return;
+      if(rf){rf.disabled=false;rf.textContent='↺ 更新';}
+
+      if(!result.ok){
+        c.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:8px;padding:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px;">⚠ 取得できませんでした</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${esc(result.error)}</div>
+        </div>`;
+        return;
+      }
+
+      if(result.records.length===0){
+        c.innerHTML='<div style="font-size:13px;color:var(--ink-soft);padding:14px 0;">今日のKY記録はまだありません。</div>';
+        return;
+      }
+
+      c.innerHTML='<div class="card-list">'+result.records.map(function(r){ return kyCardHtml(r,{readonly:true}); }).join('')+'</div>';
+    }).catch(function(err){
+      const c=mainArea.querySelector('#kyTodayShared');
+      if(!c) return;
+      if(rf){rf.disabled=false;rf.textContent='↺ 更新';}
+      c.innerHTML=`<div style="font-size:13px;color:var(--red);padding:14px 0;">予期せぬエラー: ${esc(err.message)}</div>`;
+    });
   }
 
   function openKYForm(id){
