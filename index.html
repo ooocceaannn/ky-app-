@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>現場安全管理</title>
+<title>現場安全管理（テスト版）</title>
 </head>
 <body>
 <style>
@@ -235,9 +235,15 @@
   /* ============================================================
      ★ デプロイ時にここを設定する（業者含む全員に適用）
   ============================================================ */
-  const DEFAULT_WEBHOOK   = 'https://script.google.com/macros/s/AKfycbwfzfGHwRIitA0fO3ZA7XXnuwh46B4Y5l24nYHjSf2TjiZZMshfpB82JDuaU69tOXLMwQ/exec'; // ← GASのWebhook URLをここに貼る
-  const DEFAULT_SITE_NAME = 'コメリBHG宮城白石店増改修工事'; // ← 現場名をここに入れる（例: '○○新築工事'）
-  const DEFAULT_IMGBB_KEY = '3850099d7011120d695b1c72fc969289'; // ← ImgBBのAPIキーをここに貼る
+  // URL末尾の ?site=koide / ?site=shiraishi で接続先を固定する。
+  const SITE_KEY = new URLSearchParams(location.search).get('site') === 'shiraishi' ? 'shiraishi' : 'koide';
+  const SITE_SETTINGS = {
+    koide: { id:'koide', name:'コメリ小出', webhook:'https://script.google.com/macros/s/AKfycbypzoGZMd0hsV-GYOXxqp2oQDcxGqTVe7iRBWJH_heJQTcwii8ZaMekh3bl4KsWsS3HJQ/exec' },
+    shiraishi: { id:'shiraishi', name:'コメリBHG宮城白石店増改修工事', webhook:'https://script.google.com/macros/s/AKfycby8YwRrB4DRiUl6tcR1DNIOOultu7hikG3gHzJ9tCPypq38tGdyXpBAOYxyPXEDTro6cw/exec' }
+  };
+  const DEFAULT_WEBHOOK = SITE_SETTINGS[SITE_KEY].webhook;
+  const DEFAULT_SITE_NAME = SITE_SETTINGS[SITE_KEY].name;
+  const DEFAULT_IMGBB_KEY = '3850099d7011120d695b1c72fc969289';
   /* ============================================================ */
 
   const TABS=[
@@ -263,6 +269,46 @@
     '法定職長教育',
   ];
 
+  /* ---- USER IDENTITY ---- */
+  let currentUser={id:'',name:''};
+  function loadCurrentUser(){
+    try{const saved=JSON.parse(lsGet('app:user')||'null');if(saved&&saved.id&&saved.name){currentUser=saved;return Promise.resolve();}}catch(e){}
+    return new Promise(resolve=>{
+      const overlay=document.createElement('div');
+      overlay.id='userRegistrationOverlay';
+      overlay.style.cssText='position:fixed;inset:0;z-index:999999;background:#EDE7D8;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;';
+      overlay.innerHTML=`<div style="background:#fff;border:1px solid #CBC0A1;border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 4px 18px #0002;">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;color:#142233;">氏名登録</div>
+        <p style="font-size:14px;line-height:1.7;margin-bottom:18px;">記録の入力者を識別するため、最初に氏名を登録してください。登録した氏名はこの端末に保存されます。</p>
+        <label for="userName" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">氏名</label>
+        <input id="userName" type="text" autocomplete="name" placeholder="例：山田 太郎" style="display:block;width:100%;padding:13px;border:1px solid #CBC0A1;border-radius:8px;font-size:16px;margin-bottom:16px;">
+        <button type="button" id="registerUser" style="display:block;width:100%;padding:13px;border:0;border-radius:999px;background:#E2611B;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">登録して開始</button>
+        <div id="userError" style="color:#AD2B1F;font-size:13px;margin-top:10px;"></div>
+      </div>`;
+      document.body.appendChild(overlay);
+      const input=overlay.querySelector('#userName');
+      const btn=overlay.querySelector('#registerUser');
+      const errorEl=overlay.querySelector('#userError');
+      let submitted=false;
+      const submit=()=>{
+        if(submitted)return;
+        const name=String(input.value||'').trim();
+        if(!name){errorEl.textContent='氏名を入力してください。';input.focus();return;}
+        submitted=true;
+        currentUser={id:uid('user'),name};
+        const saved=lsSet('app:user',JSON.stringify(currentUser));
+        if(!saved){submitted=false;errorEl.textContent='端末に保存できません。ブラウザの保存設定を確認してください。';return;}
+        btn.disabled=true;btn.textContent='登録完了';
+        overlay.remove();
+        resolve();
+      };
+      btn.addEventListener('click',submit);
+      input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit();}});
+      setTimeout(()=>input.focus(),50);
+    });
+  }
+  function isMyRecord(r){return !!(r&&r.enteredById&&currentUser.id&&r.enteredById===currentUser.id);}
+
   /* ---- STATE ---- */
   let state={
     tab:'ky',
@@ -270,19 +316,20 @@
     ky:{
       view:'list',records:[],
       openDates:new Set(),
-      openDates:new Set(),
-      currentId:null,filter:{q:'',date:''},
+      currentId:null,filter:{q:'',date:todayStr()},
+      loadedSiteId:null,loadingSiteId:null,loadError:'',
       shared:{companyName:''},personal:{displayName:''},
     },
     shinki:{view:'list',records:[],currentId:null,filter:{q:''}},
     overviews:{}, // { [siteId]: {...} } — GASのみが正、localStorageには保存しない
   };
 
-  /* ---- STORAGE ---- */
-  function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
-  function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
-  function lsDel(k){try{localStorage.removeItem(k);return true;}catch(e){return false;}}
-  function lsKeys(p){const a=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(p))a.push(k);}}catch(e){}return a;}
+  /* ---- STORAGE（テスト版は本番アプリと完全分離） ---- */
+  const STORAGE_PREFIX='safety_shared_v1_'+SITE_KEY+':';
+  function lsGet(k){try{return localStorage.getItem(STORAGE_PREFIX+k);}catch(e){return null;}}
+  function lsSet(k,v){try{localStorage.setItem(STORAGE_PREFIX+k,v);return true;}catch(e){return false;}}
+  function lsDel(k){try{localStorage.removeItem(STORAGE_PREFIX+k);return true;}catch(e){return false;}}
+  function lsKeys(p){const a=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(STORAGE_PREFIX+p))a.push(k.slice(STORAGE_PREFIX.length));}}catch(e){}return a;}
 
   /* ---- UTILS ---- */
   function uid(p){return (p||'r')+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);}
@@ -343,45 +390,55 @@
 
   /* ---- INIT ---- */
   async function init(){
+    try{
     renderLoading();
+    await loadCurrentUser();
+    state.ky.personal.displayName=currentUser.name;
     const cfgRaw=lsGet('app:config');
     if(cfgRaw){try{state.config=JSON.parse(cfgRaw);}catch(e){}}
-    if(!state.config.sites)state.config.sites=[];
-    if(!state.config.currentSiteId&&state.config.sites.length>0)state.config.currentSiteId=state.config.sites[0].id;
-    if(state.config.sites.length===0){
-      const oldShared=lsGet('settings:shared');
-      if(oldShared){try{const s=JSON.parse(oldShared);if(s.projectName){migrateOld(s);return;}}catch(e){}}
-    }
+    // URLで指定された現場だけを使用。端末内データも現場別に完全分離する。
+    const fixedSite = SITE_SETTINGS[SITE_KEY];
+    const savedSite = (state.config.sites||[]).find(x=>x.id===fixedSite.id) || {};
+    state.config = { currentSiteId: fixedSite.id, sites: [{ id:fixedSite.id, name:savedSite.name||fixedSite.name, webhook:fixedSite.webhook, imgbbKey:savedSite.imgbbKey||DEFAULT_IMGBB_KEY }] };
+    saveConfig();
     const kyS=lsGet('ky:shared');if(kyS)try{state.ky.shared=JSON.parse(kyS);}catch(e){}
     const kyP=lsGet('ky:personal');if(kyP)try{state.ky.personal=JSON.parse(kyP);}catch(e){}
     state.ky.records=lsKeys('record:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
     sortKY();
     state.shinki.records=lsKeys('shinki:').map(k=>{try{return JSON.parse(lsGet(k));}catch(e){return null;}}).filter(Boolean);
     sortShinki();
-    await fetchAllOverviews();
+    // 画面表示を通信完了に依存させない。概要取得はバックグラウンドで実行する。
     renderApp();
-  }
-
-  // webhookが設定されている全現場の概要をGASから取得
-  async function fetchAllOverviews(){
-    const webhooks=new Set(state.config.sites.map(s=>s.webhook).filter(Boolean));
-    if(DEFAULT_WEBHOOK) webhooks.add(DEFAULT_WEBHOOK);
-    for(const wh of webhooks){
-      await fetchOverviewsFromWebhook(wh);
+    fetchAllOverviews().catch(err=>console.warn("概要取得失敗:",err));
+    }catch(initErr){
+      console.error('初期化エラー:',initErr);
+      appEl.innerHTML='<div style="padding:24px;font-family:sans-serif;color:#922;"><h3>アプリの起動エラー</h3><p>'+String(initErr&&initErr.message||initErr)+'</p><p>この画面をそのまま送ってください。</p></div>';
     }
   }
 
-  // 1つのwebhookから概要を取得（siteId不問、シートの1件目をそのまま使う）
-  async function fetchOverviewsFromWebhook(webhook){
+  // 現場ごとのWebhookから概要を取得し、必ず該当現場のIDに紐付ける
+  async function fetchAllOverviews(){
+    const configuredSites=state.config.sites.filter(s=>s.webhook);
+    if(configuredSites.length){
+      for(const site of configuredSites){
+        await fetchOverviewsFromWebhook(site.webhook,site.id);
+      }
+      return;
+    }
+    // 旧方式（DEFAULT_WEBHOOKのみ）のデータとの互換性
+    if(DEFAULT_WEBHOOK) await fetchOverviewsFromWebhook(DEFAULT_WEBHOOK,'__default__');
+  }
+
+  // 指定された現場IDに概要を保存（現在選択中の現場IDを流用しない）
+  async function fetchOverviewsFromWebhook(webhook,targetSiteId){
     if(!webhook) return;
     try{
-      const res=await fetch(webhook,{method:'POST',body:JSON.stringify({type:'fetch_config'})});
+      const res=await fetch(webhook,{method:'POST',body:JSON.stringify({type:'fetch_config',siteId:targetSiteId||''})});
       const text=await res.text();
       let parsed;
       try{parsed=JSON.parse(text);}catch(e){console.warn('概要取得: JSONパース失敗');return;}
       if(parsed.success && parsed.overview){
-        const targetId=state.config.currentSiteId||'__default__';
-        state.overviews[targetId]=parsed.overview;
+        state.overviews[targetSiteId||'__default__']=parsed.overview;
       }
     }catch(e){console.warn('概要取得失敗:',e);}
   }
@@ -408,16 +465,15 @@
 
   function saveConfig(){lsSet('app:config',JSON.stringify(state.config));}
   function currentSite(){
-    // 設定済みの現場があればそれを使う
-    const s=state.config.sites.find(s=>s.id===state.config.currentSiteId);
-    if(s) return s;
-    // 未設定でもDEFAULT_WEBHOOKがあれば仮の現場として返す
-    if(DEFAULT_WEBHOOK){
-      return {id:'__default__',name:DEFAULT_SITE_NAME||'現場',webhook:DEFAULT_WEBHOOK,imgbbKey:DEFAULT_IMGBB_KEY};
-    }
-    return null;
+    // 現場はURLの ?site= で固定。アプリ内での切り替えは行わない。
+    return state.config.sites[0] || {id:SITE_SETTINGS[SITE_KEY].id,name:DEFAULT_SITE_NAME,webhook:DEFAULT_WEBHOOK,imgbbKey:DEFAULT_IMGBB_KEY};
   }
-  function currentOverview(){return state.overviews[state.config.currentSiteId]||state.overviews['__default__']||null;}
+  function currentOverview(){
+    const site=currentSite();
+    if(!site) return null;
+    if(site.id==='__default__') return state.overviews['__default__']||null;
+    return state.overviews[site.id]||null;
+  }
   function renderLoading(){tbInner.innerHTML=`<div class="stamp-mark">安</div><div class="site-name">読み込み中…</div>`;tabBarWrap.style.display='none';mainArea.innerHTML=`<div class="loading-state">読み込み中…</div>`;}
 
   /* ---- APP RENDER ---- */
@@ -463,8 +519,7 @@
   function openSettings(forceAdd=false){
     const ov=document.createElement('div');ov.className='settings-overlay';ov.id='settOv';appEl.appendChild(ov);
     ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
-    if(forceAdd&&state.config.sites.length===0)renderSiteEdit(ov,blankSite(),true);
-    else renderSiteList(ov);
+    renderSiteEdit(ov,currentSite(),false);
   }
 
   function renderSiteList(ov){
@@ -477,7 +532,7 @@
             <div class="site-card-name">${esc(s.name)||'（名前未設定）'}${s.id===state.config.currentSiteId?'<span class="site-card-badge">使用中</span>':''}</div>
             <div style="font-size:12px;color:var(--ink-soft);">Webhook: ${s.webhook?'設定済':'未設定'}</div>
             <div class="site-card-actions">
-              ${s.id!==state.config.currentSiteId?`<button class="btn btn-navy btn-sm" data-act="${s.id}">この現場に切替</button>`:''}
+              ${s.id!==state.config.currentSiteId?`<button class="btn btn-navy btn-sm" data-act="${s.id}">この端末で使用</button>`:''}
               <button class="btn btn-ghost btn-sm" data-edit="${s.id}">編集</button>
               <button class="btn btn-danger btn-sm" data-del="${s.id}">削除</button>
             </div></div>`).join('')}
@@ -511,8 +566,8 @@
         <div class="stitle">現場情報</div>
         <div class="sfield"><label>現場名 *</label><input type="text" id="se_name" value="${esc(site.name)}" placeholder="○○工事現場"></div>
         <div class="stitle">GAS Webhook URL（全機能共通）</div>
-        <div class="sfield" style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">KY・新規入場・写真・概要すべてに使用。各端末で同じURLを設定してください。</div>
-        <div class="sfield"><label>Webhook URL</label><input type="text" id="se_wh" value="${esc(site.webhook||'')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
+        <div class="sfield" style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">接続先はURLで自動設定されます。ここでは変更できません。</div>
+        <div class="sfield"><label>Webhook URL</label><input type="text" id="se_wh" value="${esc(site.webhook||'')}" readonly aria-readonly="true"></div>
         <div class="sfield"><label>ImgBB APIキー（写真アップロード用）</label><input type="text" id="se_imgbb" value="${esc(site.imgbbKey||'')}" placeholder="取得したAPIキーを貼り付け"></div>
         <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">imgbb.comで無料アカウントを作成 → APIページでキーを取得してください。</div>
         <div class="stitle">工事概要 ※保存するとスプレッドシートに反映・全端末で共有されます</div>
@@ -541,7 +596,7 @@
           <button class="btn btn-primary btn-block" id="se_save">保存する</button>
         </div>
       </div></div>`;
-    ov.querySelector('#sBack').onclick=()=>renderSiteList(ov);
+    ov.querySelector('#sBack').onclick=()=>ov.remove();
     ov.querySelector('#sEC').onclick=()=>ov.remove();
     ov.querySelector('#se_save').onclick=async()=>{
       const g=id=>ov.querySelector('#'+id).value.trim();
@@ -585,9 +640,9 @@
   ============================================================ */
   function blankKYRecord(){
     return {id:null,siteId:state.config.currentSiteId,date:todayStr(),startTime:'',endTime:'',
-      projectName:currentOverview()?.projectName||state.ky.shared.projectName||'',
+      projectName:currentOverview()?.projectName||'',
       companyName:state.ky.shared.companyName||'',
-      foreman:'',personInChargeSeal:'',enteredBy:state.ky.personal.displayName||'',
+      foreman:'',personInChargeSeal:'',enteredBy:state.ky.personal.displayName||currentUser.name||'',
       workContent:'',hazards:[{hazard:'',measure:''},{hazard:'',measure:''},{hazard:'',measure:''}],
       notes:'',result:'',workers:[{name:''},{name:''},{name:''}],createdAt:null,updatedAt:null};
   }
@@ -603,21 +658,13 @@
     h.textContent='現在の入力人数: '+n+' 名';
   }
 
-  /* KY shared fetch */
-  /* ================================================================
-     KY MODULE — 再設計版
-     ・今日の全員分 → GASから取得（今日のみ）→ 読み取り専用カード
-     ・自分の記録   → localStorage → 編集可能カード
-     ・isShared分岐を廃止、非同期の混乱を排除
-  ================================================================ */
-
-  // 今日のKYをGASから取得（今日のデータのみ返す設計）
+  /* KY shared fetch: 現場ごとのGASから全日付を取得し、日付プルダウンで表示 */
   async function fetchTodayKY(){
     const site=currentSite();
     if(!site?.webhook) return {ok:false, error:'Webhook URLが設定されていません'};
     try{
       const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),10000); // 10秒タイムアウト
+      const timer=setTimeout(()=>controller.abort(),10000);
       const res=await fetch(site.webhook,{
         method:'POST',
         body:JSON.stringify({type:'fetch_ky'}),
@@ -626,31 +673,23 @@
       clearTimeout(timer);
       const text=await res.text();
       let parsed;
-      try{ parsed=JSON.parse(text); }
-      catch(e){
-        console.error('fetch_ky: JSONパース失敗',text.slice(0,300));
-        return {ok:false, error:'GASの応答がJSONではありません。再デプロイを確認してください。'};
-      }
-      if(parsed.success && Array.isArray(parsed.records)){
-        return {ok:true, records:parsed.records};
-      }
-      return {ok:false, error:'GASエラー: '+(parsed.error||JSON.stringify(parsed).slice(0,100))};
+      try{parsed=JSON.parse(text);}
+      catch(e){return {ok:false,error:'GASの応答がJSONではありません。再デプロイを確認してください。'};}
+      if(parsed.success && Array.isArray(parsed.records)) return {ok:true,records:parsed.records};
+      return {ok:false,error:'GASエラー: '+(parsed.error||JSON.stringify(parsed).slice(0,100))};
     }catch(err){
-      if(err.name==='AbortError') return {ok:false, error:'タイムアウトしました（10秒）'};
-      return {ok:false, error:'通信エラー: '+err.message};
+      if(err.name==='AbortError') return {ok:false,error:'タイムアウトしました（10秒）'};
+      return {ok:false,error:'通信エラー: '+err.message};
     }
   }
 
-  // KYカードHTML（shared=読み取り専用、mine=編集可）
   function kyCardHtml(r, opts){
     opts=opts||{};
-    const sc=r.result==='ok'?'ok':r.result==='ng'?'ng':'pending';
-    const st=r.result==='ok'?'可':r.result==='ng'?'不可':'未判定';
     let wLabel='';
     if(typeof r.workers==='string') wLabel=r.workers.split('、').filter(Boolean).length+'名';
     else if(Array.isArray(r.workers)) wLabel=r.workers.filter(w=>w&&w.name).length+'名';
-    return `<div class="record-card${opts.readonly?' readonly-card':''}" ${opts.readonly?'':` data-id="${esc(r.id||'')}"`}>
-      <div class="stamp ${sc}">${st}</div>
+    const editable=isMyRecord(r);
+    return `<div class="record-card${editable?'':' readonly-card'}" ${editable?` data-id="${esc(r.id||'')}"`:''}>
       <div class="record-date">${fmtDate(r.date)}</div>
       <div class="record-meta">${esc(r.companyName||'会社名未入力')}${r.foreman?'　職長: '+esc(r.foreman):''}</div>
       <div class="record-work ${r.workContent?'':'empty'}">${r.workContent?esc(r.workContent):'作業内容が未入力です'}</div>
@@ -658,132 +697,84 @@
     </div>`;
   }
 
-  // KYリストを描画（同期部分）→ 非同期でGASセクションを差し込む
   function renderKYList(){
     const site=currentSite();
     const today=todayStr();
-    tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規</button>`;
+    const siteId=site?.id||'__default__';
+    tbInner.innerHTML=`<div class="stamp-mark">KY</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="kyNewBtn">＋ 新規作成</button>`;
 
-    // 自分の記録（localStorage）
-    const siteId=state.config.currentSiteId||'__default__';
-    const myRecords=state.ky.records.filter(r=>!r.siteId||r.siteId===siteId||r.siteId==='__default__');
-    const myTodayRecords=myRecords.filter(r=>r.date===today);
-    const myPastRecords=myRecords.filter(r=>r.date!==today);
-
-    // 自分の今日の記録カード（編集可能）
-    const myTodayHtml=myTodayRecords.length
-      ? myTodayRecords.map(r=>kyCardHtml(r,{readonly:false})).join('')
-      : '';
-
-    // 自分の過去の記録（折りたたみ）
-    let myPastHtml='';
-    if(myPastRecords.length){
-      const groups={};
-      myPastRecords.forEach(r=>{const d=r.date||'不明';if(!groups[d])groups[d]=[];groups[d].push(r);});
-      const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
-      myPastHtml=dates.slice(0,7).map(date=>{
-        const isOpen=state.ky.openDates.has(date);
-        const recs=groups[date];
-        return `<div class="date-group">
-          <div class="date-group-hd" data-date="${esc(date)}" aria-expanded="${isOpen}">
-            <span>${fmtDate(date)}</span>
-            <span style="display:flex;align-items:center;gap:4px;opacity:.9;">${recs.length}件<span class="date-group-arrow">▼</span></span>
-          </div>
-          <div class="date-group-body ${isOpen?'open':''}">
-            <div class="card-list" style="padding-bottom:8px;">${recs.map(r=>kyCardHtml(r,{readonly:false})).join('')}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
+    const records=state.ky.records.filter(r=>r.siteId===siteId||(!r.siteId&&siteId==='__default__'));
+    const dates=[...new Set(records.map(r=>String(r.date||'').slice(0,10)).filter(Boolean))];
+    if(!dates.includes(today)) dates.push(today);
+    dates.sort((a,b)=>b.localeCompare(a));
+    let selected=state.ky.filter.date||today;
+    if(!dates.includes(selected)) selected=today;
+    state.ky.filter.date=selected;
+    const dayRecords=records.filter(r=>String(r.date||'').slice(0,10)===selected)
+      .sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||'')||(a.createdAt||'').localeCompare(b.createdAt||''));
+    const loading=state.ky.loadingSiteId===siteId;
+    const error=state.ky.loadedSiteId===siteId?state.ky.loadError:'';
 
     mainArea.innerHTML=`
       <div style="margin-top:14px;">
-        <!-- 今日の全員分（GASから） -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.08em;">📅 今日の全員のKY（${fmtDate(today)}）</div>
-          <button class="btn btn-ghost btn-sm" id="kyRefresh" style="padding:5px 10px;font-size:12px;">↺ 更新</button>
+        <div class="section" style="margin-bottom:14px;">
+          <div class="section-body" style="padding:12px 14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+              <label for="kyDateSelect" style="font-size:13px;font-weight:700;white-space:nowrap;">表示する日付</label>
+              <button class="btn btn-ghost btn-sm" id="kyRefresh" style="padding:5px 10px;font-size:12px;">↺ 更新</button>
+            </div>
+            <select id="kyDateSelect" style="width:100%;padding:11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:16px;">
+              ${dates.map(d=>`<option value="${esc(d)}" ${d===selected?'selected':''}>${fmtDate(d)}</option>`).join('')}
+            </select>
+          </div>
         </div>
-        <div id="kyTodayShared" style="margin-bottom:20px;">
-          ${site?.webhook
-            ? '<div class="loading-state" style="padding:30px 0;">取得中…</div>'
-            : '<div class="empty-state" style="padding:20px;"><span style="font-size:13px;">Webhook URLを設定するとここに全員のKYが表示されます。</span></div>'}
-        </div>
-
-        <!-- 自分の記録 -->
-        <div style="font-size:12px;font-weight:700;color:var(--ink-soft);letter-spacing:.08em;margin-bottom:8px;">📋 自分の記録</div>
-        ${myTodayHtml
-          ? `<div class="card-list" id="kyMyToday" style="margin-bottom:12px;">${myTodayHtml}</div>`
-          : `<div style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">今日の記録はまだありません。「＋ 新規」から作成してください。</div>`}
-        ${myPastHtml
-          ? `<div id="kyMyPast">${myPastHtml}</div>`
-          : ''}
+        ${loading?'<div class="loading-state" style="padding:24px 0;">KYを取得中…</div>':''}
+        ${error?`<div style="font-size:12px;color:var(--red);padding:10px 0;">取得エラー：${esc(error)}</div>`:''}
+        ${!loading&&dayRecords.length?`<div class="card-list">${dayRecords.map(r=>kyCardHtml(r)).join('')}</div>`:''}
+        ${!loading&&!dayRecords.length?`<div class="empty-state" style="padding:22px 10px;">${selected===today?'今日のKY記録はまだありません。':'この日のKY記録はありません。'}</div>`:''}
       </div>`;
 
-    // ボタン類のイベント
     tbInner.querySelector('#kyNewBtn').onclick=()=>openKYForm(null);
+    mainArea.querySelector('#kyDateSelect').onchange=e=>{state.ky.filter.date=e.target.value;renderKYList();};
+    mainArea.querySelector('#kyRefresh').onclick=()=>loadAllSharedKY(true);
+    mainArea.querySelectorAll('.record-card[data-id]').forEach(c=>c.addEventListener('click',()=>openKYForm(c.dataset.id)));
 
-    // 自分の記録カードのクリック（編集）
-    mainArea.querySelectorAll('.record-card[data-id]').forEach(c=>{
-      c.addEventListener('click',()=>openKYForm(c.dataset.id));
-    });
-
-    // 過去の記録アコーディオン
-    mainArea.querySelectorAll('.date-group-hd').forEach(hd=>{
-      hd.onclick=()=>{
-        const d=hd.dataset.date;
-        const body=hd.nextElementSibling;
-        const nowOpen=body.classList.contains('open');
-        body.classList.toggle('open',!nowOpen);
-        hd.setAttribute('aria-expanded',String(!nowOpen));
-        if(nowOpen) state.ky.openDates.delete(d); else state.ky.openDates.add(d);
-      };
-    });
-
-    // 更新ボタン
-    const rf=mainArea.querySelector('#kyRefresh');
-    if(rf) rf.onclick=()=>loadTodaySharedKY();
-
-    // GASから今日の全員分を非同期で取得・差し込み
-    if(site?.webhook) loadTodaySharedKY();
+    if(site?.webhook && state.ky.loadedSiteId!==siteId && state.ky.loadingSiteId!==siteId) loadAllSharedKY(false);
   }
 
-  // 今日の全員分をGASから取得してDOMに差し込む（独立した非同期処理）
-  function loadTodaySharedKY(){
-    const container=mainArea.querySelector('#kyTodayShared');
-    if(!container) return; // 画面が変わっていたら何もしない
-    const rf=mainArea.querySelector('#kyRefresh');
-    if(rf){rf.disabled=true;rf.textContent='取得中…';}
-    container.innerHTML='<div class="loading-state" style="padding:30px 0;">取得中…</div>';
-
-    fetchTodayKY().then(function(result){
-      // DOMがまだあるか確認（タブ切替などで消えている場合は何もしない）
-      const c=mainArea.querySelector('#kyTodayShared');
-      if(!c) return;
-      if(rf){rf.disabled=false;rf.textContent='↺ 更新';}
-
-      if(!result.ok){
-        c.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:8px;padding:14px;">
-          <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px;">⚠ 取得できませんでした</div>
-          <div style="font-size:12px;color:var(--ink-soft);">${esc(result.error)}</div>
-        </div>`;
-        return;
-      }
-
-      if(result.records.length===0){
-        c.innerHTML='<div style="font-size:13px;color:var(--ink-soft);padding:14px 0;">今日のKY記録はまだありません。</div>';
-        return;
-      }
-
-      c.innerHTML='<div class="card-list">'+result.records.map(function(r){ return kyCardHtml(r,{readonly:true}); }).join('')+'</div>';
-    }).catch(function(err){
-      const c=mainArea.querySelector('#kyTodayShared');
-      if(!c) return;
-      if(rf){rf.disabled=false;rf.textContent='↺ 更新';}
-      c.innerHTML=`<div style="font-size:13px;color:var(--red);padding:14px 0;">予期せぬエラー: ${esc(err.message)}</div>`;
+  async function loadAllSharedKY(force){
+    const site=currentSite();
+    if(!site?.webhook)return;
+    const siteId=site.id||'__default__';
+    if(state.ky.loadingSiteId===siteId)return;
+    if(!force&&state.ky.loadedSiteId===siteId)return;
+    state.ky.loadingSiteId=siteId;
+    state.ky.loadError='';
+    renderKYList();
+    const result=await fetchTodayKY();
+    // 通信中に端末内の使用現場が変わっていた場合は反映しない
+    if((currentSite()?.id||'__default__')!==siteId)return;
+    state.ky.loadingSiteId=null;
+    if(!result.ok){
+      state.ky.loadedSiteId=siteId;
+      state.ky.loadError=result.error||'取得に失敗しました';
+      renderKYList();
+      return;
+    }
+    result.records.forEach(r=>{
+      const rec=Object.assign(blankKYRecord(),r,{siteId});
+      const idx=state.ky.records.findIndex(x=>x.id===rec.id&&x.siteId===siteId);
+      if(idx>=0) state.ky.records[idx]=Object.assign({},state.ky.records[idx],rec);
+      else state.ky.records.push(rec);
     });
+    state.ky.loadedSiteId=siteId;
+    state.ky.loadError='';
+    sortKY();
+    renderKYList();
   }
 
   function openKYForm(id){
+    if(id){const existing=state.ky.records.find(r=>r.id===id);if(existing&&!isMyRecord(existing)){showToast('自分が登録した記録のみ編集できます');return;}}
     let rec;
     if(id){rec=JSON.parse(JSON.stringify(state.ky.records.find(r=>r.id===id)||blankKYRecord()));}
     else{
@@ -831,13 +822,8 @@
         <div id="hazardsCont"></div>
         <button type="button" class="add-row-btn" id="addHazBtn">＋ 項目を追加</button>
       </div></div>
-      <div class="section"><div class="section-head">記事・判定</div><div class="section-body">
+      <div class="section"><div class="section-head">記事</div><div class="section-body">
         <div class="field"><label>記事（特記事項）</label><textarea id="f_notes" rows="2">${esc(rec.notes)}</textarea></div>
-        <label style="font-size:12px;color:var(--ink-soft);font-weight:700;display:block;margin-bottom:4px;">点検結果</label>
-        <div class="result-toggle" id="resultToggle" data-value="${esc(rec.result)}">
-          <button type="button" class="result-btn result-ok ${rec.result==='ok'?'active':''}" data-value="ok">✓ 可（問題なし）</button>
-          <button type="button" class="result-btn result-ng ${rec.result==='ng'?'active':''}" data-value="ng">✕ 不可（要対応）</button>
-        </div>
       </div></div>
       <div class="section"><div class="section-head">本日の作業員名簿</div><div class="section-body">
         <div id="workersCont"></div>
@@ -861,8 +847,6 @@
     wc.addEventListener('click',e=>{const b=e.target.closest('.row-remove');if(!b)return;if(wc.querySelectorAll('.worker-row').length<=1){showToast('最低1行は必要です');return;}b.closest('.worker-row').remove();renumber(wc,'.worker-row');updateWorkerHint();});
     wc.addEventListener('input',e=>{if(e.target.classList.contains('worker-name'))updateWorkerHint();});
 
-    const rt=mainArea.querySelector('#resultToggle');
-    rt.querySelectorAll('.result-btn').forEach(btn=>{btn.onclick=()=>{const cur=rt.dataset.value===btn.dataset.value?'':btn.dataset.value;rt.dataset.value=cur;rt.querySelectorAll('.result-btn').forEach(b=>b.classList.toggle('active',b.dataset.value===cur));};});
 
     const goBack=()=>{state.ky.view='list';tabBarWrap.style.display='block';renderMainTopbar(currentSite());renderTabBar();renderKYList();};
     tbInner.querySelector('#kyBack').onclick=goBack;
@@ -879,7 +863,7 @@
       projectName:g('f_pName').value.trim(),companyName:g('f_co').value.trim(),
       foreman:g('f_fo').value.trim(),personInChargeSeal:g('f_pic').value.trim(),
       enteredBy:g('f_by').value.trim(),workContent:g('f_wc').value.trim(),
-      notes:g('f_notes').value.trim(),result:mainArea.querySelector('#resultToggle').dataset.value||'',
+      notes:g('f_notes').value.trim(),result:'',
     };
     data.hazards=[...mainArea.querySelectorAll('.hazard-row')].map(r=>({hazard:r.querySelector('.hazard-input').value.trim(),measure:r.querySelector('.measure-input').value.trim()}));
     data.workers=[...mainArea.querySelectorAll('.worker-row')].map(r=>({name:r.querySelector('.worker-name').value.trim()}));
@@ -892,8 +876,8 @@
     const fd=collectKYData();
     const now=new Date().toISOString();
     let record;
-    if(isNew){record=Object.assign(blankKYRecord(),fd,{id:uid('ky'),siteId:state.config.currentSiteId,createdAt:now,updatedAt:now});}
-    else{const old=state.ky.records.find(r=>r.id===existingId)||{};record=Object.assign({},old,fd,{id:existingId,updatedAt:now});}
+    if(isNew){record=Object.assign(blankKYRecord(),fd,{id:uid('ky'),siteId:currentSite()?.id||'__default__',enteredBy:fd.enteredBy||currentUser.name,enteredById:currentUser.id,createdAt:now,updatedAt:now});}
+    else{const old=state.ky.records.find(r=>r.id===existingId)||{};record=Object.assign({},old,fd,{id:existingId,enteredById:old.enteredById||currentUser.id,updatedAt:now});}
 
     lsSet('record:'+record.id,JSON.stringify(record));
     if(fd.companyName!==state.ky.shared.companyName){state.ky.shared.companyName=fd.companyName;lsSet('ky:shared',JSON.stringify(state.ky.shared));}
@@ -907,7 +891,7 @@
       try{
         const workerNames=(record.workers||[]).map(w=>w.name).filter(Boolean).join('、');
         const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify(Object.assign({},record,{workerNames,type:'ky'}))});
-        const txt=await res.text();console.log('KY GAS:',txt);
+        const txt=await res.text();const result=JSON.parse(txt);if(!result.success)throw new Error(result.error||'保存に失敗しました');
       }catch(err){console.error('KY GAS:',err);showToast('クラウド保存に失敗（GAS接続）');}
     }
     showToast('保存しました');
@@ -929,13 +913,25 @@
 
   function renderShinkiList(){
     const site=currentSite();
-    tbInner.innerHTML=`<div class="stamp-mark" style="font-size:10px;">新規</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="skNewBtn">＋ 新規</button>`;
+    tbInner.innerHTML=`<div class="stamp-mark" style="font-size:10px;">新規</div><div class="site-name">${site?esc(site.name):'現場未設定'}</div><button class="btn btn-primary btn-sm" id="skNewBtn">＋ 新規作成</button>`;
     mainArea.innerHTML=`<div class="toolbar"><input type="text" class="search-input" id="skSearch" placeholder="氏名・会社名で検索" value="${esc(state.shinki.filter.q)}"><button class="clear-btn" id="skClear">クリア</button></div><div class="card-list" id="skCards"></div>`;
     tbInner.querySelector('#skNewBtn').onclick=()=>openShinkiForm(null);
     const si=mainArea.querySelector('#skSearch');
     si.addEventListener('input',()=>{state.shinki.filter.q=si.value;renderShinkiCards();});
     mainArea.querySelector('#skClear').onclick=()=>{state.shinki.filter.q='';si.value='';renderShinkiCards();};
     renderShinkiCards();
+    loadShinkiFromGAS();
+  }
+
+  async function loadShinkiFromGAS(){
+    const site=currentSite();if(!site?.webhook)return;
+    try{const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify({type:'fetch_shinki'})});
+      const data=await res.json();if(!data.success||!Array.isArray(data.records))return;
+      const siteId=site.id;
+      data.records.forEach(r=>{const rec=Object.assign(blankShinki(),r,{siteId});const i=state.shinki.records.findIndex(x=>x.id===rec.id);if(i>=0)state.shinki.records[i]=Object.assign({},state.shinki.records[i],rec);else state.shinki.records.push(rec);});
+      sortShinki();data.records.forEach(r=>{const rec=state.shinki.records.find(x=>x.id===r.id);if(rec)lsSet('shinki:'+rec.id,JSON.stringify(rec));});
+      if(state.tab==='shinki'&&state.shinki.view==='list')renderShinkiCards();
+    }catch(e){console.warn('新規入場者取得失敗',e);}
   }
 
   function renderShinkiCards(){
@@ -950,7 +946,7 @@
       <div class="record-date">${fmtDate(r.date)}</div>
       <div class="record-name">${esc(r.name)||'（氏名未入力）'}</div>
       <div class="record-meta">${r.furigana?esc(r.furigana)+'　':''}${esc(r.company||'会社名未入力')}</div>
-      <div class="record-footer"><span>${r.qualifications&&r.qualifications.length?'資格 '+r.qualifications.length+'件':''}</span><span>${r.foreman?'職長: '+esc(r.foreman):''}</span></div>
+      <div class="record-footer"><span>${r.qualifications&&r.qualifications.length?'資格 '+r.qualifications.length+'件':''}</span><span>${isMyRecord(r)?'自分の登録':'閲覧のみ'}</span></div>
     </div>`).join('');
     c.querySelectorAll('.record-card').forEach(card=>card.addEventListener('click',()=>openShinkiForm(card.dataset.id)));
   }
@@ -965,7 +961,8 @@
   function wireYn(){mainArea.querySelectorAll('.yn-toggle').forEach(t=>{t.querySelectorAll('.yn-btn').forEach(b=>{b.onclick=()=>{const cur=t.dataset.value===b.dataset.value?'':b.dataset.value;t.dataset.value=cur;t.querySelectorAll('.yn-btn').forEach(x=>x.classList.toggle('active',x.dataset.value===cur));};});});}
 
   function renderShinkiForm(rec,isNew){
-    tbInner.innerHTML=`<button class="back-btn" id="skBack">‹</button><div class="topbar-title"><h1>${isNew?'新規入場者 登録':'新規入場者 編集'}</h1></div>`;
+    const canEdit=isNew||isMyRecord(rec);
+    tbInner.innerHTML=`<button class="back-btn" id="skBack">‹</button><div class="topbar-title"><h1>${isNew?'新規入場者 登録':(canEdit?'新規入場者 編集':'新規入場者 詳細')}</h1></div>`;
     tabBarWrap.style.display='none';
     const qc=QUALIFICATIONS.map((q,i)=>`<div class="qual-item"><input type="checkbox" id="q${i}" data-qi="${i}" ${(rec.qualifications||[]).includes(q)?'checked':''}><label for="q${i}">${esc(q)}</label></div>`).join('');
     mainArea.innerHTML=`
@@ -1001,11 +998,36 @@
         ${!isNew?'<button class="btn btn-danger btn-sm" id="skDelBtn">削除</button>':''}
       </div>`;
     wireYn();
+    if(!canEdit){
+      mainArea.querySelectorAll('input,select,textarea').forEach(el=>{el.disabled=true;});
+      mainArea.querySelectorAll('.yn-btn').forEach(el=>{el.disabled=true;});
+      const saveBtn=mainArea.querySelector('#skSaveBtn');if(saveBtn)saveBtn.remove();
+      const delBtn=mainArea.querySelector('#skDelBtn');if(delBtn)delBtn.remove();
+      const note=document.createElement('div');note.className='form-subtitle';note.textContent='閲覧専用：この記録を編集できるのは登録者本人のみです。';
+      mainArea.insertBefore(note,mainArea.firstChild);
+    }
     const goBack=()=>{state.shinki.view='list';tabBarWrap.style.display='block';renderMainTopbar(currentSite());renderTabBar();renderShinkiList();};
     tbInner.querySelector('#skBack').onclick=goBack;
-    mainArea.querySelector('#skSaveBtn').onclick=()=>saveShinkiRecord(rec.id,isNew);
+    const saveBtn=mainArea.querySelector('#skSaveBtn');
+    if(saveBtn)saveBtn.onclick=()=>saveShinkiRecord(rec.id,isNew);
     const db=mainArea.querySelector('#skDelBtn');
-    if(db)db.onclick=()=>showConfirm('この記録を削除します。',()=>{lsDel('shinki:'+rec.id);state.shinki.records=state.shinki.records.filter(r=>r.id!==rec.id);showToast('削除しました');goBack();});
+    if(db)db.onclick=()=>showConfirm('この記録をスプレッドシートからも削除します。よろしいですか？',()=>deleteShinkiRecord(rec.id,goBack));
+  }
+
+  async function deleteShinkiRecord(id,goBack){
+    const rec=state.shinki.records.find(r=>r.id===id);
+    if(!rec||!isMyRecord(rec)){showToast('自分が登録した記録のみ削除できます');return;}
+    const site=currentSite();
+    if(!site?.webhook){showToast('Webhook URLが設定されていません');return;}
+    try{
+      const res=await fetch(site.webhook,{method:'POST',body:JSON.stringify({type:'delete_shinki',id:id,enteredById:currentUser.id})});
+      const data=await res.json();
+      if(!data.success){showToast('削除できませんでした: '+(data.error||'不明なエラー'));return;}
+      lsDel('shinki:'+id);
+      state.shinki.records=state.shinki.records.filter(r=>r.id!==id);
+      showToast('削除しました');
+      goBack();
+    }catch(e){console.error('新規入場者削除失敗',e);showToast('削除に失敗しました。通信状態を確認してください');}
   }
 
   function collectShinkiData(){
@@ -1024,8 +1046,8 @@
     const btn=mainArea.querySelector('#skSaveBtn');btn.disabled=true;btn.textContent='保存中…';
     const fd=collectShinkiData();const now=new Date().toISOString();
     let record;
-    if(isNew)record=Object.assign(blankShinki(),fd,{id:uid('sk'),siteId:state.config.currentSiteId,createdAt:now,updatedAt:now});
-    else{const old=state.shinki.records.find(r=>r.id===existingId)||{};record=Object.assign({},old,fd,{id:existingId,updatedAt:now});}
+    if(isNew)record=Object.assign(blankShinki(),fd,{id:uid('sk'),siteId:currentSite()?.id||'__default__',enteredById:currentUser.id,createdAt:now,updatedAt:now});
+    else{const old=state.shinki.records.find(r=>r.id===existingId)||{};if(!isMyRecord(old)){showToast('自分が登録した記録のみ編集できます');return;}record=Object.assign({},old,fd,{id:existingId,enteredById:old.enteredById||currentUser.id,updatedAt:now});}
     lsSet('shinki:'+record.id,JSON.stringify(record));
     const idx=state.shinki.records.findIndex(r=>r.id===record.id);
     if(idx>=0)state.shinki.records[idx]=record;else state.shinki.records.push(record);sortShinki();
