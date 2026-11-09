@@ -235,8 +235,9 @@
   /* ============================================================
      ★ デプロイ時にここを設定する（業者含む全員に適用）
   ============================================================ */
-  // URL末尾の ?site=koide / ?site=shiraishi で接続先を固定する。
-  const SITE_KEY = new URLSearchParams(location.search).get('site') === 'shiraishi' ? 'shiraishi' : 'koide';
+  // URL末尾の ?site=koide / ?site=shiroishi で接続先を固定する。旧URLの shiraishi も互換のため受け付ける。
+  const SITE_PARAM = new URLSearchParams(location.search).get('site');
+  const SITE_KEY = (SITE_PARAM === 'shiroishi' || SITE_PARAM === 'shiraishi') ? 'shiraishi' : 'koide';
   const SITE_SETTINGS = {
     koide: { id:'koide', name:'コメリ小出', webhook:'https://script.google.com/macros/s/AKfycbypzoGZMd0hsV-GYOXxqp2oQDcxGqTVe7iRBWJH_heJQTcwii8ZaMekh3bl4KsWsS3HJQ/exec' },
     shiraishi: { id:'shiraishi', name:'コメリBHG宮城白石店増改修工事', webhook:'https://script.google.com/macros/s/AKfycby8YwRrB4DRiUl6tcR1DNIOOultu7hikG3gHzJ9tCPypq38tGdyXpBAOYxyPXEDTro6cw/exec' }
